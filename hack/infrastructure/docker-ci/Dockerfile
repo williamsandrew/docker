@@ -13,6 +13,7 @@
 #       "DOCKER_CI_KEY_PATH":  "docker-ci_private_key_path",
 #       "DOCKER_CI_PUB":       "$(cat docker-ci_ssh_public_key.pub)",
 #       "DOCKER_CI_KEY":       "$(cat docker-ci_ssh_private_key.key)",
+#       "DOCKER-IO_KEY':       "$(cat docker-io_repo_key.key)",
 #       "BUILDBOT_PWD":        "Buildbot_server_password",
 #       "IRC_PWD":             "Buildbot_IRC_password",
 #       "SMTP_USER":           "SMTP_server_user",

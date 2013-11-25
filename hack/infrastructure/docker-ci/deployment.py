@@ -8,16 +8,20 @@ from os import environ as env
 from datetime import datetime
 from time import sleep
 
-# Remove SSH private key as it needs more processing
-CONFIG = json.loads(re.sub(r'("DOCKER_CI_KEY".+?"(.+?)",)','',
-    env['CONFIG_JSON'], flags=re.DOTALL))
+# Remove SSH private keys as they need more processing
+CONFIG = re.sub(r'("DOCKER_CI_KEY".+?"(.+?)",\n)','', env['CONFIG_JSON'],
+    flags=re.DOTALL)
+CONFIG = json.loads(re.sub(r'("DOCKER_IO_KEY".+?"(.+?)",\n)','', CONFIG,
+    flags=re.DOTALL))
 
 # Populate environment variables
 for key in CONFIG:
     env[key] = CONFIG[key]
 
-# Load SSH private key
+# Load SSH private keys
 env['DOCKER_CI_KEY'] = re.sub('^.+"DOCKER_CI_KEY".+?"(.+?)".+','\\1',
+    env['CONFIG_JSON'],flags=re.DOTALL)
+env['DOCKER_IO_KEY'] = re.sub('^.+"DOCKER_IO_KEY".+?"(.+?)".+','\\1',
     env['CONFIG_JSON'],flags=re.DOTALL)
 
 DROPLET_NAME = env.get('DROPLET_NAME','docker-ci')
@@ -147,11 +151,22 @@ sudo('curl -s https://phantomjs.googlecode.com/files/'
     'phantomjs-1.9.1-linux-x86_64.tar.bz2 | tar jx -C /usr/bin'
     ' --strip-components=2 phantomjs-1.9.1-linux-x86_64/bin/phantomjs')
 
-# Build docker-ci containers
+# Build local docker-ci-data container and transfer it to docker-ci
+key = base64.b64encode(env['DOCKER_IO_KEY'])
+sudo("echo '{}' > {}/data/docker-io.key".format(key, DOCKER_CI_PATH),
+    shell=True)
+sudo('cd {}/data; docker build -t docker-ci-data -rm .'.format(DOCKER_CI_PATH),
+    shell=True)
+sudo('cd {}/data; docker run -name docker-ci-data docker-ci-data true'.
+    format(DOCKER_CI_PATH), shell=True)
+sudo('rm {}/data/docker-io.key'.format(DOCKER_CI_PATH))
+
+# Build test containers on docker-ci
 sudo('cd {}; docker build -t docker .'.format(DOCKER_PATH))
 sudo('cd {}; docker build -t docker-ci .'.format(DOCKER_CI_PATH))
 sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
     DOCKER_CI_PATH))
+sudo('cd {}/docker-io; docker build -t docker-io .'.format(DOCKER_CI_PATH))
 sudo('cd {}/registry-coverage; docker build -t registry_coverage .'.format(
     DOCKER_CI_PATH))
 
