@@ -169,9 +169,7 @@ sudo('cd {}/nightlyrelease; docker build -t dockerbuilder .'.format(
 sudo('cd {}/docker-io; docker build -t docker-io .'.format(DOCKER_CI_PATH))
 sudo('cd {}/registry-coverage; docker build -t registry_coverage .'.format(
     DOCKER_CI_PATH))
-
-# Download docker-ci testing container
-sudo('docker pull mzdaniel/test_docker')
+sudo('cd {}/docker-test; docker build -t docker-test .'.format(DOCKER_CI_PATH))
 
 # Setup buildbot
 sudo('mkdir /data')
