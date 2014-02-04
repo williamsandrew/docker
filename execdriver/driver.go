@@ -68,11 +68,14 @@ type Driver interface {
 
 // Network settings of the container
 type Network struct {
-	Gateway     string `json:"gateway"`
-	IPAddress   string `json:"ip"`
-	Bridge      string `json:"bridge"`
-	IPPrefixLen int    `json:"ip_prefix_len"`
-	Mtu         int    `json:"mtu"`
+	Gateway       string `json:"gateway"`
+	Gateway6      string `json:"gateway6"`
+	IPAddress     string `json:"ip"`
+	IPAddress6    string `json:"ip6"`
+	IPPrefixLen   int    `json:"ip_prefix_len"`
+	IPPrefixLen6  int    `json:"ip_prefix_len6"`
+	Bridge        string `json:"bridge"`
+	Mtu           int    `json:"mtu"`
 }
 
 type Resources struct {
