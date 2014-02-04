@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1218,7 +1217,7 @@ func (container *Container) allocateNetwork() error {
 	container.NetworkSettings.IPAddress6 = env.Get("IP6")
 	container.NetworkSettings.IPPrefixLen = env.GetInt("IPPrefixLen")
 	container.NetworkSettings.IPPrefixLen6 = env.GetInt("IPPrefixLen6")	
-    container.NetworkSettings.Gateway = env.Get("Gateway")
+  container.NetworkSettings.Gateway = env.Get("Gateway")
 	container.NetworkSettings.Gateway6 = env.Get("Gateway6")
 
 	return nil
