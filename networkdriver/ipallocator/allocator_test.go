@@ -100,6 +100,18 @@ func TestConversion(t *testing.T) {
 	}
 }
 
+func TestConversion6(t *testing.T) {
+  ip := net.ParseIP("::1")
+  i, i2 := ip6ToInt(&ip)
+  if i != 0 || i2 == 0 {
+    t.Fatal("converted to zero")
+  }
+  conv := intToIP6(i, i2)
+  if !ip.Equal(*conv) {
+    t.Error(conv.String())
+  }
+}
+
 func TestIPAllocator(t *testing.T) {
 	expectedIPs := []net.IP{
 		0: net.IPv4(127, 0, 0, 2),
