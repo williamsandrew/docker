@@ -96,20 +96,28 @@ func AssertNoOverlap(CIDRx string, CIDRy string, t *testing.T) {
 func TestNetworkOverlaps(t *testing.T) {
 	//netY starts at same IP and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/65", t)
 	//netY starts within netX and ends at same IP
 	AssertOverlap("172.16.0.1/24", "172.16.0.128/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/65", t)
 	//netY starts and ends within netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.64/25", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::64/65", t)
 	//netY starts at same IP and ends outside of netX
 	AssertOverlap("172.16.0.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/48", t)
 	//netY starts before and ends at same IP of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8:0:1::1/64", "2001:db8::1/63", t)
 	//netY starts before and ends outside of netX
 	AssertOverlap("172.16.1.1/24", "172.16.0.1/23", t)
+	AssertOverlap("2001:db8::1/64", "2001:db8::1/48", t)
 	//netY starts and ends before netX
 	AssertNoOverlap("172.16.1.1/25", "172.16.0.1/24", t)
+	AssertNoOverlap("2001:db8:2::1/64", "2001:db8::1/64", t)
 	//netX starts and ends before netY
 	AssertNoOverlap("172.16.1.1/25", "172.16.2.1/24", t)
+	AssertNoOverlap("2001:db8::1/64", "2001:db8:2::1/64", t)
 }
 
 func TestNetworkRange(t *testing.T) {
