@@ -1,12 +1,12 @@
 package networkdriver
 
 import (
-  "crypto/sha1"
+	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
-  "time"
+	"time"
 
 	"github.com/dotcloud/docker/pkg/netlink"
 )
@@ -130,6 +130,35 @@ func GetIfaceAddr(name string) (net.Addr, error) {
 			name, (addrs4[0].(*net.IPNet)).IP)
 	}
 	return addrs4[0], nil
+}
+
+// Return the IPv6 address of a network interface
+func GetIfaceAddr6(name string) (net.Addr, error) {
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, err
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, err
+	}
+	var addrs6 []net.Addr
+	for _, addr := range addrs {
+		ip := (addr.(*net.IPNet)).IP
+		if ip4 := ip.To4(); ip4 == nil {
+			addrs6 = append(addrs6, addr)
+		}
+	}
+	switch {
+	case len(addrs6) == 0:
+		return nil, fmt.Errorf("Interface %v has no IPv6 addresses", name)
+	case len(addrs6) == 1:
+		return nil, fmt.Errorf("Interface %v only has a link-local IPv6 address", name)
+	case len(addrs6) > 2:
+		fmt.Printf("Interface %v has more than 2 IPv6 addresses. Defaulting to using %v\n",
+			name, (addrs6[0].(*net.IPNet)).IP)
+	}
+	return addrs6[0], nil
 }
 
 func GetDefaultRouteIface() (*net.Interface, error) {
