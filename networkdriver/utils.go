@@ -87,6 +87,24 @@ func NetworkSize(mask net.IPMask) int32 {
 	return int32(binary.BigEndian.Uint32(m)) + 1
 }
 
+// Given a netmask, calculates the number of available hosts
+func NetworkSize6(mask net.IPMask) (uint64, uint64) {
+	m := net.IPMask([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+
+	for i := 0; i < net.IPv6len; i++ {
+		m[i] = ^mask[i]
+	}
+
+	m1 := make([]byte, 8)
+	m2 := make([]byte, 8)
+	for i := 0; i < len(m1); i++ {
+		n := i + 8
+		m1[i] = m[i]
+		m2[i] = m[n]
+	}
+	return binary.BigEndian.Uint64(m1), binary.BigEndian.Uint64(m2)
+}
+
 // Return the IPv4 address of a network interface
 func GetIfaceAddr(name string) (net.Addr, error) {
 	iface, err := net.InterfaceByName(name)

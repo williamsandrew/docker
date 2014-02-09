@@ -188,6 +188,7 @@ func TestNetworkRange(t *testing.T) {
 		t.Error(size)
 	}
 
+
 	// IPv6
 	// 48bit mask
 	_, network, _ = net.ParseCIDR("2001:db8::1/48")
@@ -198,7 +199,9 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("2001:db8::ffff:ffff:ffff:ffff:ffff")) {
 		t.Error(last.String())
 	}
-	// TODO(ajw) Make size work with IPv6
+	if size, size2 := NetworkSize6(network.Mask); size != uint64(65535) || size2 != uint64(18446744073709551615) {
+		t.Error(size)
+	}
 
 	// 64bit mask
 	_, network, _ = net.ParseCIDR("2001:db8::1/64")
@@ -209,7 +212,13 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("2001:db8::ffff:ffff:ffff:ffff")) {
 		t.Error(last.String())
 	}
-	// TODO(ajw) Make size work with IPv6
+	if size, size2 := NetworkSize6(network.Mask); size != 0 || size2 != uint64(18446744073709551615) {
+		t.Error(size)
+	}
+
+	// TODO We should handle the special /127 and /128 networks
+	// differently from others because they ignore the "network address"
+	// in a subnet. Arbitrarily adding one to the number hosts can cause an overflow
 
 	// 127bit mask
 	_, network, _ = net.ParseCIDR("2001:db8::1/127")
@@ -220,7 +229,9 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("2001:db8::1")) {
 		t.Error(last.String())
 	}
-	// TODO(ajw) Make size work with IPv6
+	if size, size2 := NetworkSize6(network.Mask); size != 0 || size2 != uint64(1) {
+		t.Error(size)
+	}
 
 	// 128bit mask
 	_, network, _ = net.ParseCIDR("2001:db8::1/128")
@@ -231,5 +242,7 @@ func TestNetworkRange(t *testing.T) {
 	if !last.Equal(net.ParseIP("2001:db8::1")) {
 		t.Error(last.String())
 	}
-	// TODO(ajw) Make size work with IPv6
+	if size, size2 := NetworkSize6(network.Mask); size != 0 || size2 != 0 {
+		t.Error(size)
+	}
 }
