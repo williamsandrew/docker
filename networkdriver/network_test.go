@@ -187,4 +187,49 @@ func TestNetworkRange(t *testing.T) {
 	if size := NetworkSize(network.Mask); size != 64 {
 		t.Error(size)
 	}
+
+	// IPv6
+	// 48bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/48")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::ffff:ffff:ffff:ffff:ffff")) {
+		t.Error(last.String())
+	}
+	// TODO(ajw) Make size work with IPv6
+
+	// 64bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/64")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::ffff:ffff:ffff:ffff")) {
+		t.Error(last.String())
+	}
+	// TODO(ajw) Make size work with IPv6
+
+	// 127bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/127")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::1")) {
+		t.Error(last.String())
+	}
+	// TODO(ajw) Make size work with IPv6
+
+	// 128bit mask
+	_, network, _ = net.ParseCIDR("2001:db8::1/128")
+	first, last = NetworkRange(network)
+	if !first.Equal(net.ParseIP("2001:db8::1")) {
+		t.Error(first.String())
+	}
+	if !last.Equal(net.ParseIP("2001:db8::1")) {
+		t.Error(last.String())
+	}
+	// TODO(ajw) Make size work with IPv6
 }

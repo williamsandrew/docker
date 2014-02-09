@@ -59,10 +59,18 @@ func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
 // Calculates the first and last IP addresses in an IPNet
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
 	var (
-		netIP   = network.IP.To4()
-		firstIP = netIP.Mask(network.Mask)
-		lastIP  = net.IPv4(0, 0, 0, 0).To4()
+		netIP = network.IP
+		firstIP, lastIP net.IP
 	)
+
+	firstIP = netIP.Mask(network.Mask)
+	if tempIP := netIP.To4(); tempIP == nil {
+		// Looks weird, but net.IPv4 still returns a 16 byte slice
+		lastIP = net.IPv4(0, 0, 0, 0)
+	} else {
+		netIP = tempIP
+		lastIP = net.IPv4(0, 0, 0, 0).To4()
+	}
 
 	for i := 0; i < len(lastIP); i++ {
 		lastIP[i] = netIP[i] | ^network.Mask[i]
