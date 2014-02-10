@@ -440,7 +440,7 @@ func TestParsePortMapping(t *testing.T) {
 	}
 }
 
-func TestGetNameserversAsCIDR(t *testing.T) {
+func TestGetIPv4NameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4
 nameserver 40.3.200.10
@@ -460,7 +460,7 @@ nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4/32"},
 nameserver fe80::1
 nameserver 1.2.3.4`: {"1.2.3.4/32"},
 	} {
-		test := GetNameserversAsCIDR([]byte(resolv))
+		test := GetIPv4NameserversAsCIDR([]byte(resolv))
 		if !StrSlicesEqual(test, result) {
 			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
 		}

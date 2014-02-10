@@ -733,10 +733,10 @@ func StripComments(input []byte, commentMarker []byte) []byte {
 	return output
 }
 
-// GetNameserversAsCIDR returns nameservers (if any) listed in
+// GetIPv4NameserversAsCIDR returns IPv4 nameservers (if any) listed in
 // /etc/resolv.conf as CIDR blocks (e.g., "1.2.3.4/32")
 // This function's output is intended for net.ParseCIDR
-func GetNameserversAsCIDR(resolvConf []byte) []string {
+func GetIPv4NameserversAsCIDR(resolvConf []byte) []string {
 	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
 	re := regexp.MustCompile(`^\s*nameserver\s*(([0-9]+\.){3}([0-9]+))\s*$`)
@@ -750,6 +750,9 @@ func GetNameserversAsCIDR(resolvConf []byte) []string {
 	return nameservers
 }
 
+// GetIPv6NameserversAsCIDR returns IPv6 nameservers (if any) listed in
+// /etc/resolv.conf as CIDR blocks (e.g., "2001:503:ba3e::2:30/128")
+// This function's output is intended for net.ParseCIDR
 func GetIPv6NameserversAsCIDR(resolvConf []byte) []string {
 	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
