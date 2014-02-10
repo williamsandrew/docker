@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"net"
 )
 
 var (
@@ -743,6 +744,28 @@ func GetNameserversAsCIDR(resolvConf []byte) []string {
 		var ns = re.FindSubmatch(line)
 		if len(ns) > 0 {
 			nameservers = append(nameservers, string(ns[1])+"/32")
+		}
+	}
+
+	return nameservers
+}
+
+func GetIPv6NameserversAsCIDR(resolvConf []byte) []string {
+	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
+	nameservers := []string{}
+	// The regex to catch an IPv6 address is pretty scary. Lets just let Go
+	// figure out it once we have something could be
+	re := regexp.MustCompile(`^\s*nameserver\s*\[?([a-fA-F0-9:]+)\]?\s*$`)
+	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
+		var ns = re.FindSubmatch(line)
+		if len(ns) > 0 {
+			// Add the /128 CIDR notation to force parsing as IPv6
+			_,_,err := net.ParseCIDR(string(ns[1])+"/128")
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			nameservers = append(nameservers, string(ns[1])+"/128")
 		}
 	}
 
