@@ -30,6 +30,23 @@ func TestRequestNewIps(t *testing.T) {
 	}
 }
 
+func TestGetPosition(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{192, 168, 0, 1},
+		Mask: []byte{255, 255, 0, 0},
+	}
+	ip := net.IPv4(192, 168, 0, 10)
+	ip2 := net.IPv4(192, 168, 1, 100)
+
+	if result := getPosition(network, &ip); result != 10 {
+		t.Fatalf("Expected 10, got %d", result)
+	}
+	if result := getPosition(network, &ip2); result != 356 {
+		t.Fatalf("Expected 356, got %d", result)
+	}
+}
+
 func TestReleaseIp(t *testing.T) {
 	defer reset()
 	network := &net.IPNet{
