@@ -47,6 +47,25 @@ func TestGetPosition(t *testing.T) {
 	}
 }
 
+func TestGetPosition6(t *testing.T) {
+	defer reset()
+	network := &net.IPNet{
+		IP:   []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01},
+		Mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
+	ip  := net.IP{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xfa, 0xb8}
+	ip2 := net.IP{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x10}
+
+	result1, result2 := getPosition6(network, &ip)
+	if result1 != 0 && result2 == 64184 {
+		t.Fatalf("Expected 0 and 64184, got %d and %d", result1, result2)
+	}
+	result3, result4 := getPosition6(network, &ip2)
+	if result3 != 256 && result4 == 16 {
+		t.Fatalf("Expected 1 and 16, got %d and %d", result3, result4)
+	}
+}
+
 func TestReleaseIp(t *testing.T) {
 	defer reset()
 	network := &net.IPNet{

@@ -77,6 +77,15 @@ func getPosition(address *net.IPNet, ip *net.IP) int32 {
 	return i - base
 }
 
+func getPosition6(address *net.IPNet, ip *net.IP) (uint64, uint64) {
+	var (
+		first, _    = networkdriver.NetworkRange(address)
+		base, base2 = ip6ToInt(&first)
+		i, i2	    = ip6ToInt(ip)
+	)
+	return i - base, i2 - base2
+}
+
 // return an available ip if one is currently available.  If not,
 // return the next available ip for the nextwork
 func getNextIp(address *net.IPNet) (*net.IP, error) {
