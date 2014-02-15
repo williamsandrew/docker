@@ -114,6 +114,11 @@ func InitDriver(job *engine.Job) engine.Status {
 		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
 			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
 		}
+
+		// Enable IPv6 forwarding
+		if err := ioutil.WriteFile("/proc/sys/net/ipv6/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+			job.Logf("WARNING: unable to enable IPv6 forwarding: %s\n", err)
+		}
 	}
 
 	// We can always try removing the iptables
