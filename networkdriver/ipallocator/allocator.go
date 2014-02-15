@@ -153,16 +153,16 @@ func ipToInt(ip *net.IP) int32 {
 
 // Converts a 16 byte IP into two 64-bit integers
 func ip6ToInt(ip *net.IP) (uint64, uint64) {
-  b := make([]byte, 8)
-  b2 := make([]byte, 8)
-  ip2 := ip.To16()
+	b := make([]byte, 8)
+	b2 := make([]byte, 8)
+	ip2 := ip.To16()
 
-  for i := 0; i < len(b); i++ {
-    n := i + 8
-    b[i] = ip2[i]
-    b2[i] = ip2[n]
-  }
-  return binary.BigEndian.Uint64(b), binary.BigEndian.Uint64(b2)
+	for i := 0; i < len(b); i++ {
+		n := i + 8
+		b[i] = ip2[i]
+		b2[i] = ip2[n]
+	}
+	return binary.BigEndian.Uint64(b), binary.BigEndian.Uint64(b2)
 }
 
 // Converts 32 bit integer into a 4 bytes IP address
@@ -175,21 +175,21 @@ func intToIP(n int32) *net.IP {
 
 // Converts 2 64 bit integers into a 16 byte IP address
 func intToIP6(n1 uint64, n2 uint64) *net.IP {
-  b  := make([]byte, 8)
-  b2 := make([]byte, 8)
-  final := make([]byte, 16)
+	b  := make([]byte, 8)
+	b2 := make([]byte, 8)
+	final := make([]byte, 16)
 
-  binary.BigEndian.PutUint64(b, n1)
-  binary.BigEndian.PutUint64(b2, n2)
+	binary.BigEndian.PutUint64(b, n1)
+	binary.BigEndian.PutUint64(b2, n2)
 
-  for i := 0; i < len(b); i++ {
-    n := i + 8
-    final[i] = b[i]
-    final[n] = b2[i]
-  }
+	for i := 0; i < len(b); i++ {
+		n := i + 8
+		final[i] = b[i]
+		final[n] = b2[i]
+	}
 
-  ip := net.IP(final)
-  return &ip
+	ip := net.IP(final)
+	return &ip
 }
 
 func checkAddress(address *net.IPNet) {
