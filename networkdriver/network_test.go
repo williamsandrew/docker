@@ -254,3 +254,34 @@ func TestNetworkRange(t *testing.T) {
 		t.Error(size)
 	}
 }
+
+func TestIsIPv6(t *testing.T) {
+	ip, _,_  := net.ParseCIDR("202.12.27.33/32")
+	ip2,_,_  := net.ParseCIDR("10.1.2.1/8")
+	ip3,_,_  := net.ParseCIDR("224.0.0.1/4")
+
+	ip4,_,_  := net.ParseCIDR("2001:db8::1/48")
+	ip5,_,_  := net.ParseCIDR("fe80::1/64")
+	ip6,_,_  := net.ParseCIDR("ffx8::/16")
+
+
+	if result := IsIPv6(&ip); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip.String(), result)
+	}
+	if result := IsIPv6(&ip2); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip2.String(), result)
+	}
+	if result := IsIPv6(&ip3); result != false {
+		t.Fatalf("Expected false for %s, got %t", ip3.String(), result)
+	}
+
+	if result := IsIPv6(&ip4); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip4.String(), result)
+	}
+	if result := IsIPv6(&ip5); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip5.String(), result)
+	}
+	if result := IsIPv6(&ip6); result != true {
+		t.Fatalf("Expected true for %s, got %t", ip6.String(), result)
+	}
+}

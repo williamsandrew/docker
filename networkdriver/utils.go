@@ -252,3 +252,11 @@ func GenULA() string {
 
 	return ip.String() + "/64"
 }
+
+func IsIPv6(ip *net.IP) bool {
+	if ip.To4() == nil {
+		return true
+	}
+
+	return false
+}
