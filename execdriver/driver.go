@@ -42,7 +42,9 @@ func GetInitFunc(name string) (InitFunc, error) {
 type InitArgs struct {
 	User       string
 	Gateway    string
+	Gateway6   string
 	Ip         string
+	Ip6        string
 	WorkDir    string
 	Privileged bool
 	Env        []string

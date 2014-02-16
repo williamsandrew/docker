@@ -22,6 +22,7 @@ func setupHostname(args *execdriver.InitArgs) error {
 }
 
 // Setup networking
+// TODO(ajw) Make this work with IPv6
 func setupNetworking(args *execdriver.InitArgs) error {
 	if args.Ip != "" {
 		// eth0

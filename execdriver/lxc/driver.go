@@ -94,6 +94,7 @@ func (d *driver) Run(c *execdriver.Command, startCallback execdriver.StartCallba
 	if c.Network != nil {
 		params = append(params,
 			"-g", c.Network.Gateway,
+			// TODO(ajw) Review this
 			"-i", fmt.Sprintf("%s/%d", c.Network.IPAddress, c.Network.IPPrefixLen),
 			"-mtu", strconv.Itoa(c.Network.Mtu),
 		)
