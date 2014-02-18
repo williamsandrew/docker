@@ -246,28 +246,22 @@ func setupIPTables(addr net.Addr, icc bool) error {
 	return nil
 }
 
-func findBridgeNetwork(preferredIp string) (string, error) {
-	var address_pool *[]string
-
+func findBridgeNetwork(preferredIp string, address_pool []string) (string, error) {
 	nameservers := []string{}
-	ip := net.ParseIP(preferredIp)
 	resolvConf, _ := utils.GetResolvConf()
+
+	firstIP,_,_ := net.ParseCIDR(address_pool[0])
+
 	// we don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
 	if resolvConf != nil {
-		if !networkdriver.IsIPv6(&ip) {
+		if !networkdriver.IsIPv6(&firstIP) {
 			nameservers = append(nameservers, utils.GetIPv4NameserversAsCIDR(resolvConf)...)
 		} else {
 			nameservers = append(nameservers, utils.GetIPv6NameserversAsCIDR(resolvConf)...)
 		}
-	}
-
-	if networkdriver.IsIPv6(&ip) {
-		address_pool = &addrs6
-	} else {
-		address_pool = &addrs4
 	}
 
 	var ifaceAddr string
@@ -278,7 +272,7 @@ func findBridgeNetwork(preferredIp string) (string, error) {
 		}
 		return preferredIp, nil
 	} else {
-		for _, addr := range *address_pool {
+		for _, addr := range address_pool {
 			_, dockerNetwork, err := net.ParseCIDR(addr)
 			if err != nil {
 				return "", err
@@ -306,11 +300,11 @@ func findBridgeNetwork(preferredIp string) (string, error) {
 func createBridge(bridgeIP, bridgeIP6 string) error {
 	var inet, inet6 string
 
-	inet, err := findBridgeNetwork(bridgeIP)
+	inet, err := findBridgeNetwork(bridgeIP, addrs4)
 	if err != nil {
 		return err
 	}
-	inet6, err = findBridgeNetwork(bridgeIP6)
+	inet6, err = findBridgeNetwork(bridgeIP6, addrs6)
 	if err != nil {
 		return err
 	}
