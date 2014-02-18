@@ -140,7 +140,11 @@ func displayablePorts(ports *engine.Table) string {
 		if port.Get("IP") == "" {
 			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PublicPort"), port.Get("Type")))
 		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
+			if ip := net.ParseIP(port.Get("IP")); !utils.IsIPv6(&ip) {
+				result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
+			} else {
+				result = append(result, fmt.Sprintf("[%s]:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
+			}
 		}
 	}
 	return strings.Join(result, ", ")

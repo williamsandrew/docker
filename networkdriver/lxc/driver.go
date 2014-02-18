@@ -51,12 +51,7 @@ var (
 		"192.168.44.1/24",
 	}
 
-	addrs6 = []string{
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-	}
+	addrs6 = networkdriver.GenerateIPv6AddressPool()
 
 	bridgeIface    string
 	bridgeNetwork  *net.IPNet
@@ -132,6 +127,10 @@ func InitDriver(job *engine.Job) engine.Status {
 			job.Error(err)
 			return engine.StatusErr
 		}
+		if err := setupIP6Tables(addr6, icc); err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
 	}
 
 	if ipForward {
@@ -140,8 +139,8 @@ func InitDriver(job *engine.Job) engine.Status {
 			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
 		}
 
-		// Enable IPv6 forwarding
-		if err := ioutil.WriteFile("/proc/sys/net/ipv6/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
+		// Enable IPv6 forwarding on all interfaces
+		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
 			job.Logf("WARNING: unable to enable IPv6 forwarding: %s\n", err)
 		}
 	}
@@ -151,14 +150,26 @@ func InitDriver(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := iptables.RemoveExistingChain6("DOCKER"); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 
 	if enableIPTables {
+		// Add for IPv6
 		chain, err := iptables.NewChain("DOCKER", bridgeIface)
 		if err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
 		portmapper.SetIptablesChain(chain)
+
+		chain6, err := iptables.NewChain6("DOCKER", bridgeIface)
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		portmapper.SetIp6tablesChain(chain6)
 	}
 
 	bridgeNetwork  = network
@@ -246,28 +257,87 @@ func setupIPTables(addr net.Addr, icc bool) error {
 	return nil
 }
 
-func findBridgeNetwork(preferredIp string) (string, error) {
-	var address_pool *[]string
+func setupIP6Tables(addr net.Addr, icc bool) error {
+	// Enable NAT
+	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-d", addr.String(), "-j", "MASQUERADE"}
 
+	if !iptables.Exists6(natArgs...) {
+		if output, err := iptables.Raw6(append([]string{"-I"}, natArgs...)...); err != nil {
+			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error ip6tables postrouting: %s", output)
+		}
+	}
+
+	var (
+		args       = []string{"FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j"}
+		acceptArgs = append(args, "ACCEPT")
+		dropArgs   = append(args, "DROP")
+	)
+
+	if !icc {
+		iptables.Raw6(append([]string{"-D"}, acceptArgs...)...)
+
+		if !iptables.Exists6(dropArgs...) {
+			utils.Debugf("Disable inter-container communication")
+			if output, err := iptables.Raw6(append([]string{"-I"}, dropArgs...)...); err != nil {
+				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
+			}
+		}
+	} else {
+		iptables.Raw6(append([]string{"-D"}, dropArgs...)...)
+
+		if !iptables.Exists6(acceptArgs...) {
+			utils.Debugf("Enable inter-container communication")
+			if output, err := iptables.Raw6(append([]string{"-I"}, acceptArgs...)...); err != nil {
+				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
+			}
+		}
+	}
+
+	// Accept all non-intercontainer outgoing packets
+	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
+	if !iptables.Exists6(outgoingArgs...) {
+		if output, err := iptables.Raw6(append([]string{"-I"}, outgoingArgs...)...); err != nil {
+			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error ip6tables allow outgoing: %s", output)
+		}
+	}
+
+	// Accept incoming packets for existing connections
+	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+
+	if !iptables.Exists6(existingArgs...) {
+		if output, err := iptables.Raw6(append([]string{"-I"}, existingArgs...)...); err != nil {
+			return fmt.Errorf("Unable to allow incoming packets: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error ip6tables allow incoming: %s", output)
+		}
+	}
+	return nil
+}
+
+func findBridgeNetwork(preferredIp string, address_pool []string) (string, error) {
 	nameservers := []string{}
-	ip := net.ParseIP(preferredIp)
 	resolvConf, _ := utils.GetResolvConf()
+
+	firstIP,_,_ := net.ParseCIDR(address_pool[0])
+
 	// we don't check for an error here, because we don't really care
 	// if we can't read /etc/resolv.conf. So instead we skip the append
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
 	if resolvConf != nil {
-		if !networkdriver.IsIPv6(&ip) {
+		if !utils.IsIPv6(&firstIP) {
 			nameservers = append(nameservers, utils.GetIPv4NameserversAsCIDR(resolvConf)...)
 		} else {
 			nameservers = append(nameservers, utils.GetIPv6NameserversAsCIDR(resolvConf)...)
 		}
-	}
-
-	if networkdriver.IsIPv6(&ip) {
-		address_pool = &addrs6
-	} else {
-		address_pool = &addrs4
 	}
 
 	var ifaceAddr string
@@ -278,7 +348,7 @@ func findBridgeNetwork(preferredIp string) (string, error) {
 		}
 		return preferredIp, nil
 	} else {
-		for _, addr := range *address_pool {
+		for _, addr := range address_pool {
 			_, dockerNetwork, err := net.ParseCIDR(addr)
 			if err != nil {
 				return "", err
@@ -306,11 +376,11 @@ func findBridgeNetwork(preferredIp string) (string, error) {
 func createBridge(bridgeIP, bridgeIP6 string) error {
 	var inet, inet6 string
 
-	inet, err := findBridgeNetwork(bridgeIP)
+	inet, err := findBridgeNetwork(bridgeIP, addrs4)
 	if err != nil {
 		return err
 	}
-	inet6, err = findBridgeNetwork(bridgeIP6)
+	inet6, err = findBridgeNetwork(bridgeIP6, addrs6)
 	if err != nil {
 		return err
 	}
@@ -472,6 +542,9 @@ func Release(job *engine.Job) engine.Status {
 	if err := ipallocator.ReleaseIP(bridgeNetwork, &containerInterface.IP); err != nil {
 		log.Printf("Unable to release ip %s\n", err)
 	}
+	if err := ipallocator.ReleaseIP(bridgeNetwork6, &containerInterface.IP6); err != nil {
+		log.Printf("Unable to release ip %s\n", err)
+	}
 	return engine.StatusOK
 }
 
@@ -480,6 +553,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 	var (
 		err error
 
+		// XXX: For now if the jobs hostIP is empty we just assume IPv4
 		ip            = defaultBindingIP
 		id            = job.Args[0]
 		hostIP        = job.Getenv("HostIP")
@@ -507,10 +581,18 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	if proto == "tcp" {
 		host = &net.TCPAddr{IP: ip, Port: hostPort}
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		if !utils.IsIPv6(&ip) {
+			container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			container = &net.TCPAddr{IP: network.IP6, Port: containerPort}
+		}
 	} else {
 		host = &net.UDPAddr{IP: ip, Port: hostPort}
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		if !utils.IsIPv6(&ip) {
+			container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			container = &net.UDPAddr{IP: network.IP6, Port: containerPort}
+		}
 	}
 
 	if err := portmapper.Map(container, ip, hostPort); err != nil {
@@ -537,9 +619,12 @@ func LinkContainers(job *engine.Job) engine.Status {
 		action       = job.Args[0]
 		childIP      = job.Getenv("ChildIP")
 		parentIP     = job.Getenv("ParentIP")
+		childIP6     = job.Getenv("ChildIP6")
+		parentIP6    = job.Getenv("ParentIP6")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
 	)
+
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
 		return parts[0], parts[1]
@@ -547,6 +632,7 @@ func LinkContainers(job *engine.Job) engine.Status {
 
 	for _, p := range ports {
 		port, proto := split(p)
+
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", proto,
@@ -560,6 +646,20 @@ func LinkContainers(job *engine.Job) engine.Status {
 			job.Errorf("Error toggle iptables forward: %s", output)
 			return engine.StatusErr
 		}
+		if output, err := iptables.Raw6(action, "FORWARD",
+			"-i", bridgeIface, "-o", bridgeIface,
+			"-p", proto,
+			"-s", parentIP6,
+			"--dport", port,
+			"-d", childIP6,
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle ip6tables forward: %s", output)
+			return engine.StatusErr
+		}
+
 
 		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
@@ -574,6 +674,20 @@ func LinkContainers(job *engine.Job) engine.Status {
 			job.Errorf("Error toggle iptables forward: %s", output)
 			return engine.StatusErr
 		}
+		if output, err := iptables.Raw6(action, "FORWARD",
+			"-i", bridgeIface, "-o", bridgeIface,
+			"-p", proto,
+			"-s", childIP6,
+			"--sport", port,
+			"-d", parentIP6,
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle ip6tables forward: %s", output)
+			return engine.StatusErr
+		}
+
 	}
 	return engine.StatusOK
 }
