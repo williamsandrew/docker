@@ -231,7 +231,7 @@ func findMAC() uint64 {
 
 // GenULA() generates Unique Local Addresses for IPv6, implementing the
 // algorithm suggested in RFC 4193
-func GenULA() string {
+func GenULA() net.IPNet {
 	ntpsec, ntpfrac, _ := timeNTP()
 	mac := findMAC()
 	if mac == 0 {
@@ -254,7 +254,10 @@ func GenULA() string {
 		ip[n] = shakey[i]
 	}
 
-	return ip.String() + "/64"
+	return net.IPNet{
+		IP:	ip,
+		Mask:	net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
 }
 
 func IsIPv6(ip *net.IP) bool {
