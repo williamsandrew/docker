@@ -51,12 +51,7 @@ var (
 		"192.168.44.1/24",
 	}
 
-	addrs6 = []string{
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-		networkdriver.GenULA(),
-	}
+	addrs6 = networkdriver.GenerateIPv6AddressPool()
 
 	bridgeIface    string
 	bridgeNetwork  *net.IPNet

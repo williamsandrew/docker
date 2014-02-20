@@ -260,6 +260,20 @@ func GenULA() net.IPNet {
 	}
 }
 
+func GenerateIPv6AddressPool() []string {
+	var tempIP net.IP
+	addresses := make([]string, 4)
+
+	for i := 0; i < len(addresses); i++ {
+		tempIP = GenULA().IP
+		// Add one for our Gateway as GenULA generates network addresses
+		tempIP[15] = tempIP[15] + 1
+		addresses[i] = tempIP.String() + "/64"
+	}
+
+	return addresses
+}
+
 func IsIPv6(ip *net.IP) bool {
 	if ip.To4() == nil {
 		return true
