@@ -461,6 +461,9 @@ func Release(job *engine.Job) engine.Status {
 	if err := ipallocator.ReleaseIP(bridgeNetwork, &containerInterface.IP); err != nil {
 		log.Printf("Unable to release ip %s\n", err)
 	}
+	if err := ipallocator.ReleaseIP(bridgeNetwork6, &containerInterface.IP6); err != nil {
+		log.Printf("Unable to release ip %s\n", err)
+	}
 	return engine.StatusOK
 }
 
