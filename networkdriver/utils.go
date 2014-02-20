@@ -178,6 +178,10 @@ func GetDefaultRouteIface() (*net.Interface, error) {
 // returning uint64-encoded 'seconds' and 'fractions' See RFC 5905
 func timeNTP() (uint64, uint64, error) {
 	ntps, err := net.ResolveUDPAddr("udp", "0.pool.ntp.org:123")
+	if err != nil {
+		fmt.Errorf("Unable to get NTP time: %v", err)
+		return 0, 0, err
+	}
 
 	data := make([]byte, 48)
 	data[0] = 3<<3 | 3
