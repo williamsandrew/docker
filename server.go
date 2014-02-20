@@ -825,6 +825,7 @@ func (srv *Server) DockerInfo(job *engine.Job) engine.Status {
 	v.SetJson("DriverStatus", srv.runtime.driver.Status())
 	v.SetBool("MemoryLimit", srv.runtime.sysInfo.MemoryLimit)
 	v.SetBool("SwapLimit", srv.runtime.sysInfo.SwapLimit)
+	// TODO(ajw) Add this for IPv6
 	v.SetBool("IPv4Forwarding", !srv.runtime.sysInfo.IPv4ForwardingDisabled)
 	v.SetBool("Debug", os.Getenv("DEBUG") != "")
 	v.SetInt("NFd", utils.GetTotalUsedFds())

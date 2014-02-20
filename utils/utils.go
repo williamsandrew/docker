@@ -751,8 +751,8 @@ func GetIPv4NameserversAsCIDR(resolvConf []byte) []string {
 func GetIPv6NameserversAsCIDR(resolvConf []byte) []string {
 	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
 	nameservers := []string{}
-	// The regex to catch an IPv6 address is pretty scary. Lets just let Go
-	// figure out it once we have something could be
+	// TODO(ajw) Review this
+	// The regex to catch an IPv6 address is pretty scary.
 	re := regexp.MustCompile(`^\s*nameserver\s*\[?([a-fA-F0-9:]+)\]?\s*$`)
 	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
 		var ns = re.FindSubmatch(line)

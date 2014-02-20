@@ -224,10 +224,6 @@ func TestNetworkRange(t *testing.T) {
 		t.Error(size)
 	}
 
-	// TODO We should handle the special /127 and /128 networks
-	// differently from others because they ignore the "network address"
-	// in a subnet. Arbitrarily adding one to the number hosts can cause an overflow
-
 	// 127bit mask
 	_, network, _ = net.ParseCIDR("2001:db8::1/127")
 	first, last = NetworkRange(network)

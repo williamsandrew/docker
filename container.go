@@ -499,6 +499,7 @@ func (container *Container) Start() (err error) {
 		log.Printf("WARNING: IPv4 forwarding is disabled. Networking will not work")
 	}
 
+	//TODO(ajw) Review this
 	if container.runtime.sysInfo.IPv6ForwardingDisabled {
 		log.Printf("WARNING: IPv6 forwarding is disabled. IPv6 networking will not work")
 	}
@@ -690,7 +691,7 @@ func (container *Container) StderrPipe() (io.ReadCloser, error) {
 	return utils.NewBufReader(reader), nil
 }
 
-func (container *Container) buildHostnameAndHostsFiles(IP string, IP6 string) {
+func (container *Container) buildHostnameAndHostsFiles(IP, IP6 string) {
 	container.HostnamePath = path.Join(container.root, "hostname")
 	ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 
