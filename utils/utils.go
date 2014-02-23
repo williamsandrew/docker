@@ -750,20 +750,22 @@ func GetIPv4NameserversAsCIDR(resolvConf []byte) []string {
 // This function's output is intended for net.ParseCIDR
 func GetIPv6NameserversAsCIDR(resolvConf []byte) []string {
 	var parsedResolvConf = StripComments(resolvConf, []byte("#"))
+	var addr string
 	nameservers := []string{}
-	// TODO(ajw) Review this
-	// The regex to catch an IPv6 address is pretty scary.
+	// The regex to catch an IPv6 address is pretty scary. Lets use
+	// Go's native ParseCIDR method instead
 	re := regexp.MustCompile(`^\s*nameserver\s*\[?([a-fA-F0-9:]+)\]?\s*$`)
 	for _, line := range bytes.Split(parsedResolvConf, []byte("\n")) {
 		var ns = re.FindSubmatch(line)
 		if len(ns) > 0 {
 			// Add the /128 CIDR notation to force parsing as IPv6
-			_,_,err := net.ParseCIDR(string(ns[1])+"/128")
+			addr = string(ns[1])+"/128"
+			_,_,err := net.ParseCIDR(addr)
 			if err != nil {
 				fmt.Println(err)
 			}
 
-			nameservers = append(nameservers, string(ns[1])+"/128")
+			nameservers = append(nameservers, addr)
 		}
 	}
 
