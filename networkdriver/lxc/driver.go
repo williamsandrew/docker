@@ -127,6 +127,10 @@ func InitDriver(job *engine.Job) engine.Status {
 			job.Error(err)
 			return engine.StatusErr
 		}
+		if err := setupIP6Tables(addr6, icc); err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
 	}
 
 	if ipForward {
@@ -146,14 +150,26 @@ func InitDriver(job *engine.Job) engine.Status {
 		job.Error(err)
 		return engine.StatusErr
 	}
+	if err := iptables.RemoveExistingChain6("DOCKER"); err != nil {
+		job.Error(err)
+		return engine.StatusErr
+	}
 
 	if enableIPTables {
+		// Add for IPv6
 		chain, err := iptables.NewChain("DOCKER", bridgeIface)
 		if err != nil {
 			job.Error(err)
 			return engine.StatusErr
 		}
 		portmapper.SetIptablesChain(chain)
+
+		chain6, err := iptables.NewChain6("DOCKER", bridgeIface)
+		if err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		}
+		portmapper.SetIp6tablesChain(chain6)
 	}
 
 	bridgeNetwork  = network
@@ -236,6 +252,71 @@ func setupIPTables(addr net.Addr, icc bool) error {
 			return fmt.Errorf("Unable to allow incoming packets: %s", err)
 		} else if len(output) != 0 {
 			return fmt.Errorf("Error iptables allow incoming: %s", output)
+		}
+	}
+	return nil
+}
+
+func setupIP6Tables(addr net.Addr, icc bool) error {
+	// Enable NAT
+	natArgs := []string{"POSTROUTING", "-t", "nat", "-s", addr.String(), "!", "-d", addr.String(), "-j", "MASQUERADE"}
+
+	if !iptables.Exists6(natArgs...) {
+		if output, err := iptables.Raw6(append([]string{"-I"}, natArgs...)...); err != nil {
+			return fmt.Errorf("Unable to enable network bridge NAT: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error ip6tables postrouting: %s", output)
+		}
+	}
+
+	var (
+		args       = []string{"FORWARD", "-i", bridgeIface, "-o", bridgeIface, "-j"}
+		acceptArgs = append(args, "ACCEPT")
+		dropArgs   = append(args, "DROP")
+	)
+
+	if !icc {
+		iptables.Raw6(append([]string{"-D"}, acceptArgs...)...)
+
+		if !iptables.Exists6(dropArgs...) {
+			utils.Debugf("Disable inter-container communication")
+			if output, err := iptables.Raw6(append([]string{"-I"}, dropArgs...)...); err != nil {
+				return fmt.Errorf("Unable to prevent intercontainer communication: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error disabling intercontainer communication: %s", output)
+			}
+		}
+	} else {
+		iptables.Raw6(append([]string{"-D"}, dropArgs...)...)
+
+		if !iptables.Exists6(acceptArgs...) {
+			utils.Debugf("Enable inter-container communication")
+			if output, err := iptables.Raw6(append([]string{"-I"}, acceptArgs...)...); err != nil {
+				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
+			}
+		}
+	}
+
+	// Accept all non-intercontainer outgoing packets
+	outgoingArgs := []string{"FORWARD", "-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}
+	if !iptables.Exists6(outgoingArgs...) {
+		if output, err := iptables.Raw6(append([]string{"-I"}, outgoingArgs...)...); err != nil {
+			return fmt.Errorf("Unable to allow outgoing packets: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error ip6tables allow outgoing: %s", output)
+		}
+	}
+
+	// Accept incoming packets for existing connections
+	existingArgs := []string{"FORWARD", "-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}
+
+	if !iptables.Exists6(existingArgs...) {
+		if output, err := iptables.Raw6(append([]string{"-I"}, existingArgs...)...); err != nil {
+			return fmt.Errorf("Unable to allow incoming packets: %s", err)
+		} else if len(output) != 0 {
+			return fmt.Errorf("Error ip6tables allow incoming: %s", output)
 		}
 	}
 	return nil
