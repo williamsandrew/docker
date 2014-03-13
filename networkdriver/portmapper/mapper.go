@@ -111,13 +111,13 @@ func Unmap(host net.Addr) error {
 func getKey(a net.Addr) string {
 	switch t := a.(type) {
 	case *net.TCPAddr:
-		if ip := t.IP.To4(); ip != nil {
+		if t.IP.To4() != nil {
 			return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "tcp")
 		} else {
 			return fmt.Sprintf("[%s]:%d/%s", t.IP.String(), t.Port, "tcp")
 		}
 	case *net.UDPAddr:
-		if ip := t.IP.To4(); ip != nil {
+		if t.IP.To4() != nil {
 			return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
 		} else {
 			return fmt.Sprintf("[%s]:%d/%s", t.IP.String(), t.Port, "udp")
@@ -136,9 +136,17 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 	return nil, 0
 }
 
+// TODO(ajw) Make it work with IPv6
 func forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
-	if chain == nil {
-		return nil
+	if sourceIP.To4() != nil {
+		if chain == nil {
+			return nil
+		}
+		return chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
+	} else {
+		if chain6 == nil {
+			return nil
+		}
+		return chain6.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
 	}
-	return chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
 }

@@ -442,6 +442,26 @@ func TestParsePortMapping(t *testing.T) {
 	}
 }
 
+func TestParsePortMapping6(t *testing.T) {
+	data, err := PartParser("ip:public:private", "[2001:db8::1]:80:8080")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(data) != 3 {
+		t.FailNow()
+	}
+	if data["ip"] != "2001:db8::1" {
+		t.Fail()
+	}
+	if data["public"] != "80" {
+		t.Fail()
+	}
+	if data["private"] != "8080" {
+		t.Fail()
+	}
+}
+
 func TestGetIPv4NameserversAsCIDR(t *testing.T) {
 	for resolv, result := range map[string][]string{`
 nameserver 1.2.3.4

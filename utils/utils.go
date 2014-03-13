@@ -910,10 +910,25 @@ func ShellQuoteArguments(args []string) string {
 func PartParser(template, data string) (map[string]string, error) {
 	// ip:public:private
 	var (
+		parts []string
+
 		templateParts = strings.Split(template, ":")
-		parts         = strings.Split(data, ":")
 		out           = make(map[string]string, len(templateParts))
 	)
+
+	if !(strings.Contains(data, "[") && strings.Contains(data, "]")) {
+		// We either werent given an IP address or its IPv4
+		parts = strings.Split(data, ":")
+	} else {
+		// IPv6 address was specified so we cant just split on :
+		addr_tmp := strings.Split(data, "]:")
+		// Skip the first char as it should be the [
+		ip := strings.TrimPrefix(addr_tmp[0], "[")
+		ports := strings.Split(addr_tmp[1], ":")
+
+		parts = []string{ip, ports[0], ports[1]}
+	}
+
 	if len(parts) != len(templateParts) {
 		return nil, fmt.Errorf("Invalid format to parse.  %s should match template %s", data, template)
 	}
