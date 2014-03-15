@@ -6,6 +6,7 @@ import (
 	"github.com/dotcloud/docker/nat"
 	"path"
 	"strings"
+	"net"
 )
 
 type Link struct {
@@ -47,17 +48,31 @@ func (l *Link) Alias() string {
 	return alias
 }
 
+//TODO(ajw) Surround ipv6 addresses with brackets
 func (l *Link) ToEnv() []string {
 	env := []string{}
 	alias := strings.ToUpper(l.Alias())
+	ipv6 := false
+
+	if ip := net.ParseIP(l.ChildIP); ip.To4() == nil {
+		ipv6 = true
+	}
 
 	if p := l.getDefaultPort(); p != nil {
-		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+		if !ipv6 {
+			env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+		} else {
+			env = append(env, fmt.Sprintf("%s_PORT=%s://[%s]:%s", alias, p.Proto(), l.ChildIP, p.Port()))
+		}
 	}
 
 	// Load exposed ports into the environment
 	for _, p := range l.Ports {
-		env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+		if !ipv6 {
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://%s:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+		} else {
+			env = append(env, fmt.Sprintf("%s_PORT_%s_%s=%s://[%s]:%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto(), l.ChildIP, p.Port()))
+		}
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_ADDR=%s", alias, p.Port(), strings.ToUpper(p.Proto()), l.ChildIP))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PORT=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Port()))
 		env = append(env, fmt.Sprintf("%s_PORT_%s_%s_PROTO=%s", alias, p.Port(), strings.ToUpper(p.Proto()), p.Proto()))

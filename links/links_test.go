@@ -127,11 +127,11 @@ func TestLinkEnv6(t *testing.T) {
 		}
 		env[parts[0]] = parts[1]
 	}
-	if env["DOCKER_PORT"] != "tcp://2001:db8::2:6379" {
-		t.Fatalf("Expected 2001:db8::2:6379, got %s", env["DOCKER_PORT"])
+	if env["DOCKER_PORT"] != "tcp://[2001:db8::2]:6379" {
+		t.Fatalf("Expected [2001:db8::2]:6379, got %s", env["DOCKER_PORT"])
 	}
-	if env["DOCKER_PORT_6379_TCP"] != "tcp://2001:db8::2:6379" {
-		t.Fatalf("Expected tcp://2001:db8::2:6379, got %s", env["DOCKER_PORT_6379_TCP"])
+	if env["DOCKER_PORT_6379_TCP"] != "tcp://[2001:db8::2]:6379" {
+		t.Fatalf("Expected tcp://[2001:db8::2]:6379, got %s", env["DOCKER_PORT_6379_TCP"])
 	}
 	if env["DOCKER_PORT_6379_TCP_PROTO"] != "tcp" {
 		t.Fatalf("Expected tcp, got %s", env["DOCKER_PORT_6379_TCP_PROTO"])
