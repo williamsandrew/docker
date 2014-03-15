@@ -613,16 +613,11 @@ func LinkContainers(job *engine.Job) engine.Status {
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
-		ipv6	     = false
+		ipv6	     = IsIPv6(net.ParseIP(parentIP))
 	)
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
 		return parts[0], parts[1]
-	}
-
-	// Check for IPv6
-	if ip := net.ParseIP(parentIP); ip.To4() == nil {
-		ipv6 = true
 	}
 
 	for _, p := range ports {

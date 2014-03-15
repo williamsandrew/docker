@@ -1,6 +1,7 @@
 package iptables
 
 import (
+	"github.com/dotcloud/docker/networkdriver"
 	"errors"
 	"fmt"
 	"net"
@@ -18,6 +19,7 @@ const (
 )
 
 var (
+	ErrIp6tablesNAT	    = errors.New("Kernel version does not support IPv6 NAT")
 	ErrIptablesNotFound = errors.New("Iptables not found")
 	nat                 = []string{"-t", "nat"}
 )
@@ -245,6 +247,9 @@ func Raw6(args ...string) ([]byte, error) {
 	path, err := exec.LookPath("ip6tables")
 	if err != nil {
 		return nil, ErrIptablesNotFound
+	}
+	if !networkdriver.SupportsIPv6NAT() {
+		return nil, ErrIp6tablesNAT
 	}
 	if os.Getenv("DEBUG") != "" {
 		fmt.Printf("[DEBUG] [ip6tables]: %s, %v\n", path, args)
