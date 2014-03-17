@@ -207,8 +207,13 @@ func (c *Chain) Remove() error {
 	c.Prerouting(Delete)
 	c.Output(Delete)
 
-	Raw("-t", "nat", "-F", c.Name)
-	Raw("-t", "nat", "-X", c.Name)
+	if !c.IPv6 {
+		Raw("-t", "nat", "-F", c.Name)
+		Raw("-t", "nat", "-X", c.Name)
+	} else {
+		Raw6("-t", "nat", "-F", c.Name)
+		Raw6("-t", "nat", "-X", c.Name)
+	}
 
 	return nil
 }
