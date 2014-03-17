@@ -333,7 +333,7 @@ func findBridgeNetwork(preferredIp string, address_pool []string) (string, error
 	// if resolvConf is nil. It either doesn't exist, or we can't read it
 	// for some reason.
 	if resolvConf != nil {
-		if !networkdriver.IsIPv6(&firstIP) {
+		if !utils.IsIPv6(&firstIP) {
 			nameservers = append(nameservers, utils.GetIPv4NameserversAsCIDR(resolvConf)...)
 		} else {
 			nameservers = append(nameservers, utils.GetIPv6NameserversAsCIDR(resolvConf)...)
@@ -613,8 +613,12 @@ func LinkContainers(job *engine.Job) engine.Status {
 		parentIP     = job.Getenv("ParentIP")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
-		ipv6	     = IsIPv6(net.ParseIP(parentIP))
+
+		ipv6 bool
 	)
+	ip := net.ParseIP(parentIP)
+	ipv6 = utils.IsIPv6(&ip)
+
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
 		return parts[0], parts[1]

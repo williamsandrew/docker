@@ -2,7 +2,7 @@ package links
 
 import (
 	"fmt"
-	"github.com/dotcloud/docker/networkdriver"
+	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/engine"
 	"github.com/dotcloud/docker/nat"
 	"path"
@@ -55,7 +55,7 @@ func (l *Link) ToEnv() []string {
 	alias := strings.ToUpper(l.Alias())
 	ipv6 := false
 
-	if ip := net.ParseIP(l.ChildIP); networkdriver.IsIPv6(&ip) {
+	if ip := net.ParseIP(l.ChildIP); utils.IsIPv6(&ip) {
 		ipv6 = true
 	}
 
