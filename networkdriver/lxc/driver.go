@@ -581,10 +581,18 @@ func AllocatePort(job *engine.Job) engine.Status {
 
 	if proto == "tcp" {
 		host = &net.TCPAddr{IP: ip, Port: hostPort}
-		container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		if !utils.IsIPv6(&ip) {
+			container = &net.TCPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			container = &net.TCPAddr{IP: network.IP6, Port: containerPort}
+		}
 	} else {
 		host = &net.UDPAddr{IP: ip, Port: hostPort}
-		container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		if !utils.IsIPv6(&ip) {
+			container = &net.UDPAddr{IP: network.IP, Port: containerPort}
+		} else {
+			container = &net.UDPAddr{IP: network.IP6, Port: containerPort}
+		}
 	}
 
 	if err := portmapper.Map(container, ip, hostPort); err != nil {
