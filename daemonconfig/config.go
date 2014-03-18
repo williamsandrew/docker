@@ -1,0 +1,71 @@
+package daemonconfig
+
+import (
+	"net"
+
+	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/runtime/networkdriver"
+)
+
+const (
+	defaultNetworkMtu    = 1500
+	DisableNetworkBridge = "none"
+)
+
+// FIXME: separate runtime configuration from http api configuration
+type Config struct {
+	Pidfile                     string
+	Root                        string
+	AutoRestart                 bool
+	Dns                         []string
+	EnableIptables              bool
+	EnableIpForward             bool
+	DefaultIp                   net.IP
+	DefaultIp6                  net.IP
+	BridgeIface                 string
+	BridgeIP                    string
+	BridgeIP6                   string
+	InterContainerCommunication bool
+	GraphDriver                 string
+	ExecDriver                  string
+	Mtu                         int
+	DisableNetwork              bool
+}
+
+// ConfigFromJob creates and returns a new DaemonConfig object
+// by parsing the contents of a job's environment.
+func ConfigFromJob(job *engine.Job) *Config {
+	config := &Config{
+		Pidfile:                     job.Getenv("Pidfile"),
+		Root:                        job.Getenv("Root"),
+		AutoRestart:                 job.GetenvBool("AutoRestart"),
+		EnableIptables:              job.GetenvBool("EnableIptables"),
+		EnableIpForward:             job.GetenvBool("EnableIpForward"),
+		BridgeIP:                    job.Getenv("BridgeIP"),
+		BridgeIP6:                   job.Getenv("BridgeIP6"),
+		BridgeIface:                 job.Getenv("BridgeIface"),
+		DefaultIp:                   net.ParseIP(job.Getenv("DefaultIp")),
+		DefaultIp6:                  net.ParseIP(job.Getenv("DefaultIp6")),
+		InterContainerCommunication: job.GetenvBool("InterContainerCommunication"),
+		GraphDriver:                 job.Getenv("GraphDriver"),
+		ExecDriver:                  job.Getenv("ExecDriver"),
+	}
+	if dns := job.GetenvList("Dns"); dns != nil {
+		config.Dns = dns
+	}
+	if mtu := job.GetenvInt("Mtu"); mtu != 0 {
+		config.Mtu = mtu
+	} else {
+		config.Mtu = GetDefaultNetworkMtu()
+	}
+	config.DisableNetwork = config.BridgeIface == DisableNetworkBridge
+
+	return config
+}
+
+func GetDefaultNetworkMtu() int {
+	if iface, err := networkdriver.GetDefaultRouteIface(); err == nil {
+		return iface.MTU
+	}
+	return defaultNetworkMtu
+}

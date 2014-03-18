@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -34,7 +35,7 @@ type Fataler interface {
 // Go is a basic promise implementation: it wraps calls a function in a goroutine,
 // and returns a channel which will later return the function's return value.
 func Go(f func() error) chan error {
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		ch <- f()
 	}()
@@ -494,6 +495,34 @@ func TruncateID(id string) string {
 	return id[:shortLen]
 }
 
+// GenerateRandomID returns an unique id
+func GenerateRandomID() string {
+	for {
+		id := make([]byte, 32)
+		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+			panic(err) // This shouldn't happen
+		}
+		value := hex.EncodeToString(id)
+		// if we try to parse the truncated for as an int and we don't have
+		// an error then the value is all numberic and causes issues when
+		// used as a hostname. ref #3869
+		if _, err := strconv.Atoi(TruncateID(value)); err == nil {
+			continue
+		}
+		return value
+	}
+}
+
+func ValidateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("Id can't be empty")
+	}
+	if strings.Contains(id, ":") {
+		return fmt.Errorf("Invalid character in id: ':'")
+	}
+	return nil
+}
+
 // Code c/c from io.Copy() modified to handle escape sequence
 func CopyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
 	buf := make([]byte, 32*1024)
@@ -607,14 +636,20 @@ func GetKernelVersion() (*KernelVersionInfo, error) {
 func ParseRelease(release string) (*KernelVersionInfo, error) {
 	var (
 		kernel, major, minor, parsed int
-		flavor                       string
+		flavor, partial              string
 	)
 
 	// Ignore error from Sscanf to allow an empty flavor.  Instead, just
 	// make sure we got all the version numbers.
-	parsed, _ = fmt.Sscanf(release, "%d.%d.%d%s", &kernel, &major, &minor, &flavor)
-	if parsed < 3 {
+	parsed, _ = fmt.Sscanf(release, "%d.%d%s", &kernel, &major, &partial)
+	if parsed < 2 {
 		return nil, errors.New("Can't parse kernel version " + release)
+	}
+
+	// sometimes we have 3.12.25-gentoo, but sometimes we just have 3.12-1-amd64
+	parsed, _ = fmt.Sscanf(partial, ".%d%s", &minor, &flavor)
+	if parsed < 1 {
+		flavor = partial
 	}
 
 	return &KernelVersionInfo{
@@ -680,7 +715,7 @@ func IsURL(str string) bool {
 }
 
 func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/")
+	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
 }
 
 // GetResolvConf opens and read the content of /etc/resolv.conf.
@@ -1014,6 +1049,46 @@ func NewReadCloserWrapper(r io.Reader, closer func() error) io.ReadCloser {
 		Reader: r,
 		closer: closer,
 	}
+}
+
+// ReplaceOrAppendValues returns the defaults with the overrides either
+// replaced by env key or appended to the list
+func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
+	cache := make(map[string]int, len(defaults))
+	for i, e := range defaults {
+		parts := strings.SplitN(e, "=", 2)
+		cache[parts[0]] = i
+	}
+	for _, value := range overrides {
+		parts := strings.SplitN(value, "=", 2)
+		if i, exists := cache[parts[0]]; exists {
+			defaults[i] = value
+		} else {
+			defaults = append(defaults, value)
+		}
+	}
+	return defaults
+}
+
+// ReadSymlinkedDirectory returns the target directory of a symlink.
+// The target of the symbolic link may not be a file.
+func ReadSymlinkedDirectory(path string) (string, error) {
+	var realPath string
+	var err error
+	if realPath, err = filepath.Abs(path); err != nil {
+		return "", fmt.Errorf("unable to get absolute path for %s: %s", path, err)
+	}
+	if realPath, err = filepath.EvalSymlinks(realPath); err != nil {
+		return "", fmt.Errorf("failed to canonicalise path for %s: %s", path, err)
+	}
+	realPathInfo, err := os.Stat(realPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat target '%s' of '%s': %s", realPath, path, err)
+	}
+	if !realPathInfo.Mode().IsDir() {
+		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
+	}
+	return realPath, nil
 }
 
 func IsIPv6(ip *net.IP) bool {

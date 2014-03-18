@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/dotcloud/docker/auth"
 	"github.com/dotcloud/docker/utils"
 	"strings"
 	"testing"
@@ -14,7 +13,7 @@ var (
 )
 
 func spawnTestRegistry(t *testing.T) *Registry {
-	authConfig := &auth.AuthConfig{}
+	authConfig := &AuthConfig{}
 	r, err := NewRegistry(authConfig, utils.NewHTTPRequestFactory(), makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +123,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 func TestPushImageLayerRegistry(t *testing.T) {
 	r := spawnTestRegistry(t)
 	layer := strings.NewReader("")
-	_, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
+	_, _, err := r.PushImageLayerRegistry(IMAGE_ID, layer, makeURL("/v1/"), TOKEN, []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +136,7 @@ func TestResolveRepositoryName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, ep, auth.IndexServerAddress(), "Expected endpoint to be index server address")
+	assertEqual(t, ep, IndexServerAddress(), "Expected endpoint to be index server address")
 	assertEqual(t, repo, "fooo/bar", "Expected resolved repo to be foo/bar")
 
 	u := makeURL("")[7:]
@@ -145,7 +144,7 @@ func TestResolveRepositoryName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, ep, "http://"+u+"/v1/", "Expected endpoint to be "+u)
+	assertEqual(t, ep, u, "Expected endpoint to be "+u)
 	assertEqual(t, repo, "private/moonbase", "Expected endpoint to be private/moonbase")
 }
 
@@ -187,14 +186,16 @@ func TestPushImageJSONIndex(t *testing.T) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistry(t)
-	results, err := r.SearchRepositories("supercalifragilisticepsialidocious")
+	results, err := r.SearchRepositories("fakequery")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if results == nil {
 		t.Fatal("Expected non-nil SearchResults object")
 	}
-	assertEqual(t, results.NumResults, 0, "Expected 0 search results")
+	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
+	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
+	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' a ot hae 42 stars")
 }
 
 func TestValidRepositoryName(t *testing.T) {

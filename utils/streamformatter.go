@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 )
 
 type StreamFormatter struct {
@@ -14,6 +15,10 @@ func NewStreamFormatter(json bool) *StreamFormatter {
 	return &StreamFormatter{json, false}
 }
 
+const streamNewline = "\r\n"
+
+var streamNewlineBytes = []byte(streamNewline)
+
 func (sf *StreamFormatter) FormatStream(str string) []byte {
 	sf.used = true
 	if sf.json {
@@ -21,7 +26,7 @@ func (sf *StreamFormatter) FormatStream(str string) []byte {
 		if err != nil {
 			return sf.FormatError(err)
 		}
-		return b
+		return append(b, streamNewlineBytes...)
 	}
 	return []byte(str + "\r")
 }
@@ -34,9 +39,9 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 		if err != nil {
 			return sf.FormatError(err)
 		}
-		return b
+		return append(b, streamNewlineBytes...)
 	}
-	return []byte(str + "\r\n")
+	return []byte(str + streamNewline)
 }
 
 func (sf *StreamFormatter) FormatError(err error) []byte {
@@ -47,11 +52,11 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 			jsonError = &JSONError{Message: err.Error()}
 		}
 		if b, err := json.Marshal(&JSONMessage{Error: jsonError, ErrorMessage: err.Error()}); err == nil {
-			return b
+			return append(b, streamNewlineBytes...)
 		}
-		return []byte("{\"error\":\"format error\"}")
+		return []byte("{\"error\":\"format error\"}" + streamNewline)
 	}
-	return []byte("Error: " + err.Error() + "\r\n")
+	return []byte("Error: " + err.Error() + streamNewline)
 }
 
 func (sf *StreamFormatter) FormatProgress(id, action string, progress *JSONProgress) []byte {
@@ -85,4 +90,32 @@ func (sf *StreamFormatter) Used() bool {
 
 func (sf *StreamFormatter) Json() bool {
 	return sf.json
+}
+
+type StdoutFormater struct {
+	io.Writer
+	*StreamFormatter
+}
+
+func (sf *StdoutFormater) Write(buf []byte) (int, error) {
+	formattedBuf := sf.StreamFormatter.FormatStream(string(buf))
+	n, err := sf.Writer.Write(formattedBuf)
+	if n != len(formattedBuf) {
+		return n, io.ErrShortWrite
+	}
+	return len(buf), err
+}
+
+type StderrFormater struct {
+	io.Writer
+	*StreamFormatter
+}
+
+func (sf *StderrFormater) Write(buf []byte) (int, error) {
+	formattedBuf := sf.StreamFormatter.FormatStream("\033[91m" + string(buf) + "\033[0m")
+	n, err := sf.Writer.Write(formattedBuf)
+	if n != len(formattedBuf) {
+		return n, io.ErrShortWrite
+	}
+	return len(buf), err
 }

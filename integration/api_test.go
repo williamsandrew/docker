@@ -3,16 +3,18 @@ package docker
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go/src/pkg/archive/tar"
 	"encoding/json"
 	"fmt"
-	"github.com/dotcloud/docker"
 	"github.com/dotcloud/docker/api"
 	"github.com/dotcloud/docker/dockerversion"
 	"github.com/dotcloud/docker/engine"
+	"github.com/dotcloud/docker/image"
 	"github.com/dotcloud/docker/runconfig"
+	"github.com/dotcloud/docker/runtime"
 	"github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -286,7 +288,7 @@ func TestGetImagesByName(t *testing.T) {
 	}
 	assertHttpNotError(r, t)
 
-	img := &docker.Image{}
+	img := &image.Image{}
 	if err := json.Unmarshal(r.Body.Bytes(), img); err != nil {
 		t.Fatal(err)
 	}
@@ -598,7 +600,7 @@ func TestGetContainersByName(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHttpNotError(r, t)
-	outContainer := &docker.Container{}
+	outContainer := &runtime.Container{}
 	if err := json.Unmarshal(r.Body.Bytes(), outContainer); err != nil {
 		t.Fatal(err)
 	}
@@ -1175,6 +1177,8 @@ func TestGetEnabledCors(t *testing.T) {
 
 func TestDeleteImages(t *testing.T) {
 	eng := NewTestEngine(t)
+	//we expect errors, so we disable stderr
+	eng.Stderr = ioutil.Discard
 	defer mkRuntimeFromEngine(eng, t).Nuke()
 
 	initialImages := getImages(eng, t, true, "")

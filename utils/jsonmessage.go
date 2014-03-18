@@ -52,7 +52,7 @@ func (p *JSONProgress) String() string {
 	}
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
-	if p.Start > 0 && percentage < 50 {
+	if p.Current > 0 && p.Start > 0 && percentage < 50 {
 		fromStart := time.Now().UTC().Sub(time.Unix(int64(p.Start), 0))
 		perEntry := fromStart / time.Duration(p.Current)
 		left := time.Duration(p.Total-p.Current) * perEntry
@@ -85,7 +85,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return jm.Error
 	}
 	var endl string
-	if isTerminal {
+	if isTerminal && jm.Stream == "" {
 		// <ESC>[2K = erase entire current line
 		fmt.Fprintf(out, "%c[2K\r", 27)
 		endl = "\r"

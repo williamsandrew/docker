@@ -20,8 +20,12 @@ To list available commands, either run ``docker`` with no parameters or execute
 
 .. _cli_options:
 
-Types of Options
-----------------
+Options
+-------
+
+Single character commandline options can be combined, so rather than typing
+``docker run -t -i --name test busybox sh``, you can write
+``docker run -ti --name test busybox sh``.
 
 Boolean
 ~~~~~~~
@@ -48,7 +52,7 @@ Sometimes this can use a more complex value string, as for ``-v``::
 Strings and Integers
 ~~~~~~~~~~~~~~~~~~~~
 
-Options like ``-name=""`` expect a string, and they can only be
+Options like ``--name=""`` expect a string, and they can only be
 specified once. Options like ``-c=0`` expect an integer, and they can
 only be specified once.
 
@@ -67,6 +71,7 @@ Commands
     Usage of docker:
       -D, --debug=false: Enable debug mode
       -H, --host=[]: Multiple tcp://host:port or unix://path/to/socket to bind in daemon mode, single connection otherwise. systemd socket activation can be used with fd://[socketfd].
+      -G, --group="docker": Group to assign the unix socket specified by -H when running in daemon mode; use '' (the empty string) to disable setting of a group
       --api-enable-cors=false: Enable CORS headers in the remote API
       -b, --bridge="": Attach containers to a pre-existing network bridge; use 'none' to disable container networking
       --bip="": Use this CIDR notation address for the network bridge's IP, not compatible with -b
@@ -75,27 +80,31 @@ Commands
       -g, --graph="/var/lib/docker": Path to use as the root of the docker runtime
       --icc=true: Enable inter-container communication
       --ip="0.0.0.0": Default IP address to use when binding container ports
-      --iptables=true: Disable docker's addition of iptables rules
+      --ip-forward=true: Enable net.ipv4.ip_forward
+      --iptables=true: Enable Docker's addition of iptables rules
       -p, --pidfile="/var/run/docker.pid": Path to use for daemon PID file
       -r, --restart=true: Restart previously running containers
       -s, --storage-driver="": Force the docker runtime to use a specific storage driver
+      -e, --exec-driver="native": Force the docker runtime to use a specific exec driver
       -v, --version=false: Print version information and quit
-      -mtu, --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if not default route is available
+      --mtu=0: Set the containers network MTU; if no value is provided: default to the default route MTU or 1500 if no default route is available
 
-The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the 
+The Docker daemon is the persistent process that manages containers.  Docker uses the same binary for both the
 daemon and client.  To run the daemon you provide the ``-d`` flag.
 
 To force Docker to use devicemapper as the storage driver, use ``docker -d -s devicemapper``.
 
-To set the DNS server for all Docker containers, use ``docker -d -dns 8.8.8.8``.
+To set the DNS server for all Docker containers, use ``docker -d --dns 8.8.8.8``.
 
 To run the daemon with debug output, use ``docker -d -D``.
 
+To use lxc as the execution driver, use ``docker -d -e lxc``.
+
 The docker client will also honor the ``DOCKER_HOST`` environment variable to set
-the ``-H`` flag for the client.  
+the ``-H`` flag for the client.
 
 ::
- 
+
         docker -H tcp://0.0.0.0:4243 ps
         # or
         export DOCKER_HOST="tcp://0.0.0.0:4243"
@@ -107,11 +116,15 @@ Using ``fd://`` will work perfectly for most setups but you can also specify ind
 If the specified socket activated files aren't found then docker will exit.
 You can find examples of using systemd socket activation with docker and systemd in the `docker source tree <https://github.com/dotcloud/docker/blob/master/contrib/init/systemd/socket-activation/>`_.
 
-.. warning::
-  Docker and LXC do not support the use of softlinks for either the Docker data directory (``/var/lib/docker``) or for ``/tmp``.
-  If your system is likely to be set up in that way, you can use ``readlink -f`` to canonicalise the links:
+Docker supports softlinks for the Docker data directory (``/var/lib/docker``) and for ``/tmp``.
+TMPDIR and the data directory can be set like this:
 
-  ``TMPDIR=$(readlink -f /tmp) /usr/local/bin/docker -d -D -g $(readlink -f /var/lib/docker) -H unix:// $EXPOSE_ALL > /var/lib/boot2docker/docker.log 2>&1``
+::
+
+    TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    # or
+    export TMPDIR=/mnt/disk2/tmp
+    /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 .. _cli_attach:
 
@@ -129,7 +142,7 @@ You can find examples of using systemd socket activation with docker and systemd
 
 You can detach from the container again (and leave it running) with
 ``CTRL-c`` (for a quiet exit) or ``CTRL-\`` to get a stacktrace of
-the Docker client when it quits.  When you detach from the container's 
+the Docker client when it quits.  When you detach from the container's
 process the exit code will be returned to the client.
 
 To stop a container, use ``docker stop``.
@@ -184,18 +197,22 @@ Examples:
 
     Usage: docker build [OPTIONS] PATH | URL | -
     Build a new container image from the source code at PATH
-      -t, --time="": Repository name (and optionally a tag) to be applied 
+      -t, --tag="": Repository name (and optionally a tag) to be applied
              to the resulting image in case of success.
       -q, --quiet=false: Suppress the verbose output generated by the containers.
       --no-cache: Do not use the cache when building the image.
-      --rm: Remove intermediate containers after a successful build
+      --rm=true: Remove intermediate containers after a successful build
 
-The files at ``PATH`` or ``URL`` are called the "context" of the build. The
-build process may refer to any of the files in the context, for example when
-using an :ref:`ADD <dockerfile_add>` instruction.  When a single ``Dockerfile``
-is given as ``URL``, then no context is set.  When a Git repository is set as
-``URL``, then the repository is used as the context. Git repositories are
-cloned with their submodules (`git clone --recursive`).
+The files at ``PATH`` or ``URL`` are called the "context" of the build.
+The build process may refer to any of the files in the context, for example when
+using an :ref:`ADD <dockerfile_add>` instruction.
+When a single ``Dockerfile`` is given as ``URL``, then no context is set.
+
+When a Git repository is set as ``URL``, then the repository is used as the context. 
+The Git repository is cloned with its submodules (`git clone --recursive`).
+A fresh git clone occurs in a temporary directory on your local host, and then this 
+is sent to the Docker daemon as the context. 
+This way, your local user credentials and vpn's etc can be used to access private repositories
 
 .. _cli_build_examples:
 
@@ -229,6 +246,9 @@ Examples:
      ---> Running in 02071fceb21b
      ---> f52f38b7823e
     Successfully built f52f38b7823e
+    Removing intermediate container 9c9e81692ae9
+    Removing intermediate container 02071fceb21b
+
 
 This example specifies that the ``PATH`` is ``.``, and so all the files in
 the local directory get tar'd and sent to the Docker daemon.  The ``PATH``
@@ -242,6 +262,9 @@ client side (where you're running ``docker build``). That means that
 The transfer of context from the local machine to the Docker daemon is
 what the ``docker`` client means when you see the "Uploading context"
 message.
+
+If you wish to keep the intermediate containers after the build is complete,
+you must use ``--rm=false``. This does not affect the build cache.
 
 
 .. code-block:: bash
@@ -285,8 +308,8 @@ by using the ``git://`` schema.
 
       -m, --message="": Commit message
       -a, --author="": Author (eg. "John Hannibal Smith <hannibal@a-team.com>"
-      --run="": Configuration to be applied when the image is launched with `docker run`.
-               (ex: -run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
+      --run="": Configuration changes to be applied when the image is launched with `docker run`.
+               (ex: --run='{"Cmd": ["cat", "/world"], "PortSpecs": ["22"]}')
 
 .. _cli_commit_examples:
 
@@ -297,14 +320,14 @@ Commit an existing container
 
 	$ sudo docker ps
 	ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
-	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
-	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours                             
+	c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
+	197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
 	$ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
 	f5283438590d
 	$ docker images | head
 	REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
 	SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
-	
+
 Change the command that a container runs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -316,9 +339,9 @@ run ``ls /etc``.
 
 .. code-block:: bash
 
-        $ docker run -t -name test ubuntu ls
+        $ docker run -t --name test ubuntu ls
         bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  selinux  srv  sys  tmp  usr  var
-        $ docker commit -run='{"Cmd": ["ls","/etc"]}' test test2
+        $ docker commit --run='{"Cmd": ["ls","/etc"]}' test test2
         933d16de9e70005304c1717b5c6f2f39d6fd50752834c6f34a155c70790011eb
         $ docker run -t test2
         adduser.conf            gshadow          login.defs           rc0.d
@@ -326,17 +349,46 @@ run ``ls /etc``.
         apt                     host.conf        lsb-base             rc2.d
         ...
 
-Full -run example
-.................
+Merged configs example
+......................
+
+Say you have a Dockerfile like so:
+
+.. code-block:: bash
+
+        ENV MYVAR foobar
+        RUN apt-get install openssh
+        EXPOSE 22
+        CMD ["/usr/sbin/sshd -D"]
+        ...
+
+If you run that, make some changes, and then commit, Docker will merge the environment variable and exposed port configuration settings with any that you specify in the --run= option. This is a change from Docker 0.8.0 and prior where no attempt was made to preserve any existing configuration on commit.
+
+.. code-block:: bash
+
+        $ docker build -t me/foo .
+        $ docker run -t -i me/foo /bin/bash
+        foo-container$ [make changes in the container]
+        foo-container$ exit
+        $ docker commit --run='{"Cmd": ["ls"]}' [container-id] me/bar
+        ...
+
+The me/bar image will now have port 22 exposed, MYVAR env var set to 'foobar', and its default command will be ["ls"].
+
+Note that this is currently a shallow merge. So, for example, if you had specified a new port spec in the --run= config above, that would have clobbered the 'EXPOSE 22' setting from the parent container.
+
+Full --run example
+..................
 
 The ``--run`` JSON hash changes the ``Config`` section when running ``docker inspect CONTAINERID``
-or ``config`` when running ``docker inspect IMAGEID``.
+or ``config`` when running ``docker inspect IMAGEID``. Existing configuration key-values that are
+not overridden in the JSON hash will be merged in.
 
 (Multiline is okay within a single quote ``'``)
 
 .. code-block:: bash
 
-  $ sudo docker commit -run='
+  $ sudo docker commit --run='
   {
       "Entrypoint" : null,
       "Privileged" : false,
@@ -468,16 +520,16 @@ Show events in the past from a specified time
 
 .. code-block:: bash
 
-    $ sudo docker events -since 1378216169
+    $ sudo docker events --since 1378216169
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03'
+    $ sudo docker events --since '2013-09-03'
     [2013-09-03 15:49:26 +0200 CEST] 4386fb97867d: (from 12de384bfb10) start
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
-    $ sudo docker events -since '2013-09-03 15:49:29 +0200 CEST'
+    $ sudo docker events --since '2013-09-03 15:49:29 +0200 CEST'
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) die
     [2013-09-03 15:49:29 +0200 CEST] 4386fb97867d: (from 12de384bfb10) stop
 
@@ -510,7 +562,7 @@ For example:
     Show the history of an image
 
       --no-trunc=false: Don't truncate output
-      -q, --quiet=false: only show numeric IDs
+      -q, --quiet=false: Only show numeric IDs
 
 To see how the ``docker:latest`` image was built:
 
@@ -557,11 +609,11 @@ To see how the ``docker:latest`` image was built:
 
     List images
 
-      -a, --all=false: show all images (by default filter out the intermediate images used to build)
+      -a, --all=false: Show all images (by default filter out the intermediate images used to build)
       --no-trunc=false: Don't truncate output
-      -q, --quiet=false: only show numeric IDs
-      --tree=false: output graph in tree format
-      --viz=false: output graph in graphviz format
+      -q, --quiet=false: Only show numeric IDs
+      -t, --tree=false: Output graph in tree format
+      -v, --viz=false: Output graph in graphviz format
 
 Listing the most recently created images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -646,7 +698,7 @@ Displaying image hierarchy
 
     Usage: docker import URL|- [REPOSITORY[:TAG]]
 
-    Create an empty filesystem image and import the contents of the tarball 
+    Create an empty filesystem image and import the contents of the tarball
     (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then optionally tag it.
 
 At this time, the URL must start with ``http`` and point to a single
@@ -781,7 +833,7 @@ text output:
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
 Find a Specific Port Mapping
 ............................
@@ -796,7 +848,20 @@ we ask for the ``HostPort`` field to get the public address.
 
 .. code-block:: bash
 
-    $ sudo docker inspect -format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+    $ sudo docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
+
+Get config
+..........
+
+The ``.Field`` syntax doesn't work when the field contains JSON data,
+but the template language's custom ``json`` function does. The ``.config``
+section contains complex json object, so to grab it as JSON, you use ``json``
+to convert config object into JSON
+
+.. code-block:: bash
+
+    $ sudo docker inspect --format='{{json .config}}' $INSTANCE_ID
+
 
 .. _cli_kill:
 
@@ -844,9 +909,9 @@ Known Issues (kill)
 
     Register or Login to the docker registry server
 
-    -e, --email="": email
-    -p, --password="": password
-    -u, --username="": username
+    -e, --email="": Email
+    -p, --password="": Password
+    -u, --username="": Username
 
     If you want to login to a private registry you can
     specify this by adding the server name.
@@ -902,8 +967,14 @@ new output from the container's stdout and stderr.
     List containers
 
       -a, --all=false: Show all containers. Only running containers are shown by default.
+      --before-id="": Show only container created before Id, include non-running ones.
+      -l, --latest=false: Show only the latest created container, include non-running ones.
+      -n=-1: Show n last created containers, include non-running ones.
       --no-trunc=false: Don't truncate output
       -q, --quiet=false: Only display numeric IDs
+      -s, --size=false: Display sizes, not to be used with -q
+      --since-id="": Show only containers created since Id, include non-running ones.
+
 
 Running ``docker ps`` showing 2 linked containers.
 
@@ -911,11 +982,13 @@ Running ``docker ps`` showing 2 linked containers.
 
     $ docker ps
     CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
-    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp              
+    4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds                           webapp
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
     fd2645e2e2b5        busybox:latest               top                    10 days ago          Ghost                                   insane_ptolemy
 
 The last container is marked as a ``Ghost`` container. It is a container that was running when the docker daemon was restarted (upgraded, or ``-H`` settings changed). The container is still running, but as this docker daemon process is not able to manage it, you can't attach to it. To bring them out of ``Ghost`` Status, you need to use ``docker kill`` or ``docker restart``.
+
+``docker ps`` will show only running containers by default.  To see all containers: ``docker ps -a``
 
 .. _cli_pull:
 
@@ -927,6 +1000,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
     Usage: docker pull NAME
 
     Pull an image or a repository from the registry
+
+      -t, --tag="": Download tagged image in repository
 
 
 .. _cli_push:
@@ -952,6 +1027,8 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
 
     Restart a running container
 
+       -t, --time=10: Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default=10
+
 .. _cli_rm:
 
 ``rm``
@@ -962,7 +1039,9 @@ The last container is marked as a ``Ghost`` container. It is a container that wa
     Usage: docker rm [OPTIONS] CONTAINER
 
     Remove one or more containers
-        --link="": Remove the link instead of the actual container
+        -l, --link="": Remove the link instead of the actual container
+        -f, --force=false: Force removal of running container
+        -v, --volumes=false: Remove the volumes associated to the container
 
 Known Issues (rm)
 ~~~~~~~~~~~~~~~~~
@@ -1011,7 +1090,10 @@ containers will not be deleted.
     Usage: docker rmi IMAGE [IMAGE...]
 
     Remove one or more images
-    
+
+      -f, --force=false: Force
+      --no-prune=false: Do not delete untagged parents
+
 Removing tagged images
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1060,7 +1142,7 @@ image is removed.
       --cidfile="": Write the container ID to the file
       -d, --detach=false: Detached mode: Run container in the background, print new container id
       -e, --env=[]: Set environment variables
-      -h, --host="": Container host name
+      -h, --hostname="": Container host name
       -i, --interactive=false: Keep stdin open even if not attached
       --privileged=false: Give extended privileges to this container
       -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
@@ -1074,7 +1156,7 @@ image is removed.
       --volumes-from="": Mount all volumes from the given container(s)
       --entrypoint="": Overwrite the default entrypoint set by the image
       -w, --workdir="": Working directory inside the container
-      --lxc-conf=[]: Add custom lxc options -lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
+      --lxc-conf=[]: Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
       --sig-proxy=true: Proxify all received signal to the process (even in non-tty mode)
       --expose=[]: Expose a port from the container without publishing it to your host
       --link="": Add link to another container (name:alias)
@@ -1085,16 +1167,17 @@ The ``docker run`` command first ``creates`` a writeable container layer over
 the specified image, and then ``starts`` it using the specified command. That
 is, ``docker run`` is equivalent to the API ``/containers/create`` then
 ``/containers/(id)/start``.
+Once the container is stopped it still exists and can be started back up.  See ``docker ps -a`` to view a list of all containers.
 
 The ``docker run`` command can be used in combination with ``docker commit`` to
 :ref:`change the command that a container runs <cli_commit_examples>`.
 
-See :ref:`port_redirection` for more detailed information about the ``--expose``, 
-``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for 
+See :ref:`port_redirection` for more detailed information about the ``--expose``,
+``-p``, ``-P`` and ``--link`` parameters, and :ref:`working_with_links_names` for
 specific examples using ``--link``.
 
-Known Issues (run -volumes-from)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Known Issues (run --volumes-from)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * :issue:`2702`: "lxc-start: Permission denied - failed to mount"
   could indicate a permissions problem with AppArmor. Please see the
@@ -1121,7 +1204,7 @@ error. Docker will close this file when ``docker run`` exits.
 
 This will *not* work, because by default, most potentially dangerous
 kernel capabilities are dropped; including ``cap_sys_admin`` (which is
-required to mount filesystems). However, the ``-privileged`` flag will
+required to mount filesystems). However, the ``--privileged`` flag will
 allow it to run:
 
 .. code-block:: bash
@@ -1133,7 +1216,7 @@ allow it to run:
    none            1.9G     0  1.9G   0% /mnt
 
 
-The ``-privileged`` flag gives *all* capabilities to the container,
+The ``--privileged`` flag gives *all* capabilities to the container,
 and it also lifts all the limitations enforced by the ``device``
 cgroup controller. In other words, the container can then do almost
 everything that the host can do. This flag exists to allow special
@@ -1170,8 +1253,8 @@ starting your container.
 
    $ sudo docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
 
-By bind-mounting the docker unix socket and statically linked docker binary 
-(such as that provided by https://get.docker.io), you give the container 
+By bind-mounting the docker unix socket and statically linked docker binary
+(such as that provided by https://get.docker.io), you give the container
 the full access to create and manipulate the host's docker daemon.
 
 .. code-block:: bash
@@ -1212,7 +1295,7 @@ to the newly created container.
    $ sudo docker run --volumes-from 777f7dc92da7,ba8c0c54f0f2:ro -i -t ubuntu pwd
 
 The ``--volumes-from`` flag mounts all the defined volumes from the
-referenced containers. Containers can be specified by a comma seperated
+referenced containers. Containers can be specified by a comma separated
 list or by repetitions of the ``--volumes-from`` argument. The container
 ID may be optionally suffixed with ``:ro`` or ``:rw`` to mount the volumes in
 read-only or read-write mode, respectively. By default, the volumes are mounted
@@ -1235,7 +1318,7 @@ This example shows 5 containers that might be set up to test a web application c
 2. Start a pre-prepared ``riakserver`` image, give the container name ``riak`` and expose port ``8098`` to any containers that link to it;
 3. Start the ``appserver`` image, restricting its memory usage to 100MB, setting two environment variables ``DEVELOPMENT`` and ``BRANCH`` and bind-mounting the current directory (``$(pwd)``) in the container in read-only mode as ``/app/bin``;
 4. Start the ``webserver``, mapping port ``443`` in the container to port ``1443`` on the Docker server, setting the DNS server to ``dns.dev.org``, creating a volume to put the log files into (so we can access it from another container), then importing the files from the volume exposed by the ``static`` container, and linking to all exposed ports from ``riak`` and ``app``. Lastly, we set the hostname to ``web.sven.dev.org`` so its consistent with the pre-generated SSL certificate;
-5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``-rm`` option means that when the container exits, the container's layer is removed.
+5. Finally, we create a container that runs ``tail -f access.log`` using the logs volume from the ``web`` container, setting the workdir to ``/var/log/httpd``. The ``--rm`` option means that when the container exits, the container's layer is removed.
 
 
 .. _cli_save:
@@ -1301,7 +1384,7 @@ The main process inside the container will receive SIGTERM, and after a grace pe
 
 ::
 
-    Usage: docker tag [OPTIONS] IMAGE REPOSITORY[:TAG]
+    Usage: docker tag [OPTIONS] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 
     Tag an image into a repository
 
