@@ -1,7 +1,7 @@
 package iptables
 
 import (
-	"github.com/dotcloud/docker/networkdriver"
+	"github.com/dotcloud/docker/utils"
 	"errors"
 	"fmt"
 	"net"
@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"log"
 )
 
 type Action string
@@ -253,15 +254,30 @@ func Raw6(args ...string) ([]byte, error) {
 	if err != nil {
 		return nil, ErrIptablesNotFound
 	}
-	if !networkdriver.SupportsIPv6NAT() {
-		return nil, ErrIp6tablesNAT
+	if SupportsIPv6NAT() {
+		if os.Getenv("DEBUG") != "" {
+			fmt.Printf("[DEBUG] [ip6tables]: %s, %v\n", path, args)
+		}
+		output, err := exec.Command(path, args...).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("ip6tables failed: ip6tables %v: %s (%s)", strings.Join(args, " "), output, err)
+		}
+		return output, err
+	} else {
+		log.Println("WARNING: Linux kernel version is too old to support IPv6 NAT. Please upgrade your kernel to atleast 3.7.0.")
+		return nil, nil
 	}
-	if os.Getenv("DEBUG") != "" {
-		fmt.Printf("[DEBUG] [ip6tables]: %s, %v\n", path, args)
-	}
-	output, err := exec.Command(path, args...).CombinedOutput()
+}
+
+func SupportsIPv6NAT() bool {
+	version, err := utils.GetKernelVersion()
 	if err != nil {
-		return nil, fmt.Errorf("ip6tables failed: ip6tables %v: %s (%s)", strings.Join(args, " "), output, err)
+		log.Printf("WARNING: %s\n", err)
+		return false
 	}
-	return output, err
+
+	if utils.CompareKernelVersion(version, &utils.KernelVersionInfo{Kernel: 3, Major: 7, Minor: 0}) < 0 {
+		return false
+	}
+	return true
 }
