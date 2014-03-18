@@ -547,6 +547,8 @@ func (container *Container) Start() (err error) {
 			link, err := links.NewLink(
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,
+				container.NetworkSettings.IPAddress6,
+				child.NetworkSettings.IPAddress6,
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,

@@ -10,7 +10,7 @@ func TestLinkNew(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "2001:db8::3", "2001:db8::2", "/db/docker", nil, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,35 +30,10 @@ func TestLinkNew(t *testing.T) {
 	if link.ChildIP != "172.0.17.2" {
 		t.Fail()
 	}
-	for _, p := range link.Ports {
-		if p != nat.Port("6379/tcp") {
-			t.Fail()
-		}
-	}
-}
-
-func TestLinkNew6(t *testing.T) {
-	ports := make(nat.PortSet)
-	ports[nat.Port("6379/tcp")] = struct{}{}
-
-	link, err := NewLink("2001:db8::3", "2001:db8::2", "/db/docker", nil, ports, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if link == nil {
-		t.FailNow()
-	}
-	if link.Name != "/db/docker" {
+	if link.ParentIP6 != "2001:db8::3" {
 		t.Fail()
 	}
-	if link.Alias() != "docker" {
-		t.Fail()
-	}
-	if link.ParentIP != "2001:db8::3" {
-		t.Fail()
-	}
-	if link.ChildIP != "2001:db8::2" {
+	if link.ChildIP6 != "2001:db8::2" {
 		t.Fail()
 	}
 	for _, p := range link.Ports {
@@ -72,7 +47,7 @@ func TestLinkEnv(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "2001:db8::3", "2001:db8::2", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,8 +64,14 @@ func TestLinkEnv(t *testing.T) {
 	if env["DOCKER_PORT"] != "tcp://172.0.17.2:6379" {
 		t.Fatalf("Expected 172.0.17.2:6379, got %s", env["DOCKER_PORT"])
 	}
+	if env["DOCKER_PORT6"] != "tcp://[2001:db8::2]:6379" {
+		t.Fatalf("Expected [2001:db8::2]:6379, got %s", env["DOCKER_PORT6"])
+	}
 	if env["DOCKER_PORT_6379_TCP"] != "tcp://172.0.17.2:6379" {
 		t.Fatalf("Expected tcp://172.0.17.2:6379, got %s", env["DOCKER_PORT_6379_TCP"])
+	}
+	if env["DOCKER_PORT6_6379_TCP"] != "tcp://[2001:db8::2]:6379" {
+		t.Fatalf("Expected tcp://[2001:db8::2]:6379, got %s", env["DOCKER_PORT6_6379_TCP"])
 	}
 	if env["DOCKER_PORT_6379_TCP_PROTO"] != "tcp" {
 		t.Fatalf("Expected tcp, got %s", env["DOCKER_PORT_6379_TCP_PROTO"])
@@ -109,11 +90,11 @@ func TestLinkEnv(t *testing.T) {
 	}
 }
 
-func TestLinkEnv6(t *testing.T) {
+func TestLinkEnvNoIPv6(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[nat.Port("6379/tcp")] = struct{}{}
 
-	link, err := NewLink("2001:db8::3", "2001:db8::2", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
+	link, err := NewLink("172.0.17.3", "172.0.17.2", "", "", "/db/docker", []string{"PASSWORD=gordon"}, ports, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,25 +108,16 @@ func TestLinkEnv6(t *testing.T) {
 		}
 		env[parts[0]] = parts[1]
 	}
-	if env["DOCKER_PORT"] != "tcp://[2001:db8::2]:6379" {
-		t.Fatalf("Expected [2001:db8::2]:6379, got %s", env["DOCKER_PORT"])
+	if _,ok := env["DOCKER_PORT"]; !ok {
+		t.Fatal("Expected to find DOCKER_PORT in environment")
 	}
-	if env["DOCKER_PORT_6379_TCP"] != "tcp://[2001:db8::2]:6379" {
-		t.Fatalf("Expected tcp://[2001:db8::2]:6379, got %s", env["DOCKER_PORT_6379_TCP"])
+	if val,ok := env["DOCKER_PORT6"]; ok {
+		t.Fatalf("Expected to not find DOCKER_PORT6 in environment. Value: %s", val)
 	}
-	if env["DOCKER_PORT_6379_TCP_PROTO"] != "tcp" {
-		t.Fatalf("Expected tcp, got %s", env["DOCKER_PORT_6379_TCP_PROTO"])
+	if _,ok := env["DOCKER_PORT_6379_TCP"]; !ok {
+		t.Fatal("Expected to find DOCKER_PORT_6379_TCP in environment")
 	}
-	if env["DOCKER_PORT_6379_TCP_ADDR"] != "2001:db8::2" {
-		t.Fatalf("Expected 2001:db8::2, got %s", env["DOCKER_PORT_6379_TCP_ADDR"])
-	}
-	if env["DOCKER_PORT_6379_TCP_PORT"] != "6379" {
-		t.Fatalf("Expected 6379, got %s", env["DOCKER_PORT_6379_TCP_PORT"])
-	}
-	if env["DOCKER_NAME"] != "/db/docker" {
-		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])
-	}
-	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
-		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])
+	if val,ok := env["DOCKER_PORT6_6379_TCP"]; ok {
+		t.Fatalf("Expected to not find DOCKER_PORT6_6379_TCP in environment. Value: %s", val)
 	}
 }

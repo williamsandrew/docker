@@ -619,13 +619,11 @@ func LinkContainers(job *engine.Job) engine.Status {
 		action       = job.Args[0]
 		childIP      = job.Getenv("ChildIP")
 		parentIP     = job.Getenv("ParentIP")
+		childIP6     = job.Getenv("ChildIP6")
+		parentIP6    = job.Getenv("ParentIP6")
 		ignoreErrors = job.GetenvBool("IgnoreErrors")
 		ports        = job.GetenvList("Ports")
-
-		ipv6 bool
 	)
-	ip := net.ParseIP(parentIP)
-	ipv6 = utils.IsIPv6(&ip)
 
 	split := func(p string) (string, string) {
 		parts := strings.Split(p, "/")
@@ -635,64 +633,61 @@ func LinkContainers(job *engine.Job) engine.Status {
 	for _, p := range ports {
 		port, proto := split(p)
 
-		parent_args := []string{
-			action,
-			"FORWARD",
+		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", proto,
 			"-s", parentIP,
 			"--dport", port,
 			"-d", childIP,
-			"-j",
-			"ACCEPT",
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle iptables forward: %s", output)
+			return engine.StatusErr
 		}
-		if !ipv6 {
-			if output, err := iptables.Raw(parent_args...); !ignoreErrors && err != nil {
-				job.Error(err)
-				return engine.StatusErr
-			} else if len(output) != 0 {
-				job.Errorf("Error toggle iptables forward: %s", output)
-				return engine.StatusErr
-			}
-		} else {
-			if output, err := iptables.Raw6(parent_args...); !ignoreErrors && err != nil {
-				job.Error(err)
-				return engine.StatusErr
-			} else if len(output) != 0 {
-				job.Errorf("Error toggle ip6tables forward: %s", output)
-				return engine.StatusErr
-			}
+		if output, err := iptables.Raw6(action, "FORWARD",
+			"-i", bridgeIface, "-o", bridgeIface,
+			"-p", proto,
+			"-s", parentIP6,
+			"--dport", port,
+			"-d", childIP6,
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle ip6tables forward: %s", output)
+			return engine.StatusErr
 		}
 
 
-		child_args := []string{
-			action,
-			"FORWARD",
+		if output, err := iptables.Raw(action, "FORWARD",
 			"-i", bridgeIface, "-o", bridgeIface,
 			"-p", proto,
 			"-s", childIP,
 			"--sport", port,
 			"-d", parentIP,
-			"-j",
-			"ACCEPT",
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle iptables forward: %s", output)
+			return engine.StatusErr
 		}
-		if !ipv6 {
-			if output, err := iptables.Raw(child_args...); !ignoreErrors && err != nil {
-				job.Error(err)
-				return engine.StatusErr
-			} else if len(output) != 0 {
-				job.Errorf("Error toggle iptables forward: %s", output)
-				return engine.StatusErr
-			}
-		} else {
-			if output, err := iptables.Raw6(child_args...); !ignoreErrors && err != nil {
-				job.Error(err)
-				return engine.StatusErr
-			} else if len(output) != 0 {
-				job.Errorf("Error toggle ip6tables forward: %s", output)
-				return engine.StatusErr
-			}
+		if output, err := iptables.Raw6(action, "FORWARD",
+			"-i", bridgeIface, "-o", bridgeIface,
+			"-p", proto,
+			"-s", childIP6,
+			"--sport", port,
+			"-d", parentIP6,
+			"-j", "ACCEPT"); !ignoreErrors && err != nil {
+			job.Error(err)
+			return engine.StatusErr
+		} else if len(output) != 0 {
+			job.Errorf("Error toggle ip6tables forward: %s", output)
+			return engine.StatusErr
 		}
+
 	}
 	return engine.StatusOK
 }
