@@ -105,6 +105,7 @@ func InitDriver(job *engine.Job) engine.Status {
 		network = addr.(*net.IPNet)
 	}
 
+	//TODO(ajw) Add disable support
 	addr6, err := networkdriver.GetIfaceAddr6(bridgeIface)
 	if err != nil {
 		// At this point we should have a bridge because of
@@ -133,6 +134,8 @@ func InitDriver(job *engine.Job) engine.Status {
 			job.Logf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
 		}
 
+
+		//TODO(ajw) Add disable support
 		// Enable IPv6 forwarding on all interfaces
 		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
 			job.Logf("WARNING: unable to enable IPv6 forwarding: %s\n", err)
@@ -374,13 +377,12 @@ func createBridge(bridgeIP, bridgeIP6 string) error {
 	if err != nil {
 		return err
 	}
+	//TODO(ajw) Add disable support
 	inet6, err = findBridgeNetwork(bridgeIP6, addrs6)
 	if err != nil {
 		return err
 	}
 
-
-	utils.Debugf("Creating bridge %s with networks %s, %s", bridgeIface, inet, inet6)
 	if err := createBridgeIface(bridgeIface); err != nil {
 		return err
 	}
@@ -404,6 +406,7 @@ func createBridge(bridgeIP, bridgeIP6 string) error {
 		return err
 	}
 
+	//TODO(ajw) Add disable support
 	if netlink.NetworkLinkAddIp(iface, ipAddr6, ipNet6); err != nil {
 		return fmt.Errorf("Unable to add private IPv6 network: %s", err)
 	}

@@ -11,9 +11,10 @@ to containers. The ``docker0`` bridge interface is managed by Docker
 for this purpose. When the Docker daemon starts it :
 
 - creates the ``docker0`` bridge if not present
-- searches for an IP address range which doesn't overlap with an existing route
-- picks an IP in the selected range
-- assigns this IP to the ``docker0`` bridge
+- searches for an IP address range which doesn't overlap with an existing route. For
+  IPv6 it generates a network of Unique Local Addresses (ULAs)
+- picks an IP in the selected ranges
+- assigns those IPs to the ``docker0`` bridge
 
 
 .. code-block:: bash
@@ -27,14 +28,15 @@ for this purpose. When the Docker daemon starts it :
     $ sudo ifconfig docker0
     docker0   Link encap:Ethernet  HWaddr xx:xx:xx:xx:xx:xx
    	 inet addr:172.17.42.1  Bcast:0.0.0.0  Mask:255.255.0.0
+     inet6 fc00:bc:b070:564::1  prefixlen 64  scopeid 0x0<global>
 
 
 
 At runtime, a :ref:`specific kind of virtual
 interface<vethxxxx-device>` is given to each container which is then
 bonded to the ``docker0`` bridge.  Each container also receives a
-dedicated IP address from the same range as ``docker0``. The
-``docker0`` IP address is used as the default gateway for the
+dedicated IPv4 and IPv6 address from the same networks as ``docker0``. The
+``docker0`` IP addresses are used as the default gateway for the
 container.
 
 .. code-block:: bash

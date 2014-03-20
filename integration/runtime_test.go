@@ -378,15 +378,16 @@ func startEchoServerContainer(t *testing.T, proto string) (*runtime.Runtime, *ru
 		strPort = strconv.Itoa(port)
 		var cmd string
 		if proto == "tcp" {
-			cmd = "socat TCP-LISTEN:" + strPort + ",reuseaddr,fork EXEC:/bin/cat"
+			cmd = "socat TCP4-LISTEN:" + strPort + ",reuseaddr,fork EXEC:/bin/cat"
 		} else if proto == "udp" {
-			cmd = "socat UDP-RECVFROM:" + strPort + ",fork EXEC:/bin/cat"
+			cmd = "socat UDP4-RECVFROM:" + strPort + ",fork EXEC:/bin/cat"
 		} else {
 			t.Fatal(fmt.Errorf("Unknown protocol %v", proto))
 		}
 		ep := make(map[nat.Port]struct{}, 1)
 		p = nat.Port(fmt.Sprintf("%s/%s", strPort, proto))
 		ep[p] = struct{}{}
+
 
 		jobCreate := eng.Job("create")
 		jobCreate.Setenv("Image", unitTestImageID)
@@ -406,6 +407,7 @@ func startEchoServerContainer(t *testing.T, proto string) (*runtime.Runtime, *ru
 		t.Logf("Port %v already in use, trying another one", strPort)
 
 	}
+
 
 	jobStart := eng.Job("start", id)
 	portBindings := make(map[nat.Port][]nat.PortBinding)
@@ -430,6 +432,8 @@ func startEchoServerContainer(t *testing.T, proto string) (*runtime.Runtime, *ru
 		}
 	})
 
+	fmt.Println("FOOOOOOOOOOOOOOOO")
+
 	// Even if the state is running, lets give some time to lxc to spawn the process
 	container.WaitTimeout(500 * time.Millisecond)
 
@@ -438,13 +442,14 @@ func startEchoServerContainer(t *testing.T, proto string) (*runtime.Runtime, *ru
 }
 
 // Run a container with a TCP port allocated, and test that it can receive connections on localhost
+//TODO(ajw) Fix this
 func TestAllocateTCPPortLocalhost(t *testing.T) {
 	runtime, container, port := startEchoServerContainer(t, "tcp")
 	defer nuke(runtime)
 	defer container.Kill()
 
 	for i := 0; i != 10; i++ {
-		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%v", port))
+		conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%v", port))
 		if err != nil {
 			t.Fatal(err)
 		}
