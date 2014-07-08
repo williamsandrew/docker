@@ -1,7 +1,6 @@
 package iptables
 
 import (
-	"github.com/dotcloud/docker/networkdriver"
 	"errors"
 	"fmt"
 	"net"

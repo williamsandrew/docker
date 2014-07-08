@@ -14,7 +14,6 @@ func init() {
 
 func reset() {
 	chain  = nil
-	chain6 = nil
 	currentMappings = make(map[string]*mapping)
 }
 
@@ -24,7 +23,6 @@ func TestSetIptablesChain(t *testing.T) {
 	c := &iptables.Chain{
 		Name:   "TEST",
 		Bridge: "192.168.1.1",
-		IPv6:	false,
 	}
 
 	if chain != nil {
@@ -33,25 +31,6 @@ func TestSetIptablesChain(t *testing.T) {
 
 	SetIptablesChain(c)
 	if chain == nil {
-		t.Fatal("chain should not be nil after set")
-	}
-}
-
-func TestSetIp6tablesChain(t *testing.T) {
-	defer reset()
-
-	c := &iptables.Chain{
-		Name:   "TEST",
-		Bridge: "fe80::1",
-		IPv6:	true,
-	}
-
-	if chain6 != nil {
-		t.Fatal("chain should be nil at init")
-	}
-
-	SetIp6tablesChain(c)
-	if chain6 == nil {
 		t.Fatal("chain should not be nil after set")
 	}
 }
@@ -94,106 +73,33 @@ func TestMapPorts(t *testing.T) {
 	}
 }
 
-func TestMapPorts6(t *testing.T) {
-	dstIp1 := net.ParseIP("2001:db8::1")
-	dstIp2 := net.ParseIP("2001:db8::2")
-	dstAddr1 := &net.TCPAddr{IP: dstIp1, Port: 80}
-	dstAddr2 := &net.TCPAddr{IP: dstIp2, Port: 80}
-
-	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("fe80::1")}
-	srcAddr2 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("fe80::2")}
-
-	if err := Map(srcAddr1, dstIp1, 80); err != nil {
-		t.Fatalf("Failed to allocate port: %s", err)
-	}
-
-	if Map(srcAddr1, dstIp1, 80) == nil {
-		t.Fatalf("Port is in use - mapping should have failed")
-	}
-
-	if Map(srcAddr2, dstIp1, 80) == nil {
-		t.Fatalf("Port is in use - mapping should have failed")
-	}
-
-	if err := Map(srcAddr2, dstIp2, 80); err != nil {
-		t.Fatalf("Failed to allocate port: %s", err)
-	}
-
-	if Unmap(dstAddr1) != nil {
-		t.Fatalf("Failed to release port")
-	}
-
-	if Unmap(dstAddr2) != nil {
-		t.Fatalf("Failed to release port")
-	}
-
-	if Unmap(dstAddr2) == nil {
-		t.Fatalf("Port already released, but no error reported")
-	}
-}
-
 func TestGetUDPKey(t *testing.T) {
 	addr := &net.UDPAddr{IP: net.ParseIP("192.168.1.5"), Port: 53}
-	addr2 := &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 53}
-	// Make sure addresses are compressed when used as a key
-	addr3 := &net.UDPAddr{IP: net.ParseIP("2001:0db8:0000::1"), Port: 53}
-
 	key  := getKey(addr)
-	key2 := getKey(addr2)
-	key3 := getKey(addr3)
 
 	if expected := "192.168.1.5:53/udp"; key != expected {
 		t.Fatalf("expected key %s got %s", expected, key)
-	}
-	if expected := "[2001:db8::1]:53/udp"; key2 != expected {
-		t.Fatalf("expected key %s got %s", expected, key2)
-	}
-	if expected := "[2001:db8::1]:53/udp"; key3 != expected {
-		t.Fatalf("expected key %s got %s", expected, key3)
 	}
 }
 
 func TestGetTCPKey(t *testing.T) {
 	addr:= &net.TCPAddr{IP: net.ParseIP("192.168.1.5"), Port: 80}
-	addr2 := &net.TCPAddr{IP: net.ParseIP("2001:db8::1"), Port: 80}
-	// Make sure addresses are compressed when used as a key
-	addr3 := &net.TCPAddr{IP: net.ParseIP("2001:0db8:0000::1"), Port: 80}
-
 	key  := getKey(addr)
-	key2 := getKey(addr2)
-	key3 := getKey(addr3)
 
 	if expected := "192.168.1.5:80/tcp"; key != expected {
 		t.Fatalf("expected key %s got %s", expected, key)
-	}
-	if expected := "[2001:db8::1]:80/tcp"; key2 != expected {
-		t.Fatalf("expected key %s got %s", expected, key2)
-	}
-	if expected := "[2001:db8::1]:80/tcp"; key3 != expected {
-		t.Fatalf("expected key %s got %s", expected, key3)
 	}
 }
 
 func TestGetUDPIPAndPort(t *testing.T) {
 	addr := &net.UDPAddr{IP: net.ParseIP("192.168.1.5"), Port: 53}
-	addr2 := &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 53}
 
 	ip, port := getIPAndPort(addr)
-	ip2, port2 := getIPAndPort(addr2)
 	if expected := "192.168.1.5"; ip.String() != expected {
 		t.Fatalf("expected ip %s got %s", expected, ip)
 	}
 
 	if ep := 53; port != ep {
 		t.Fatalf("expected port %d got %d", ep, port)
-	}
-
-
-	if expected := "2001:db8::1"; ip2.String() != expected {
-		t.Fatalf("expected ip %s got %s", expected, ip2)
-	}
-
-	if ep := 53; port != ep {
-		t.Fatalf("expected port %d got %d", ep, port2)
 	}
 }

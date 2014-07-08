@@ -87,6 +87,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			proto = rawPort[i+1:]
 			rawPort = rawPort[:i]
 		}
+		//TODO(ajw) Should we leave this in?
 		// Dont munge rawPort if we were given an IPv6 address
 		if !(strings.Contains(rawPort, "[") && strings.Contains(rawPort, "]")) {
 			if !strings.Contains(rawPort, ":") {

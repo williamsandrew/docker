@@ -18,7 +18,6 @@ type mapping struct {
 
 var (
 	chain  *iptables.Chain
-	chain6 *iptables.Chain
 	lock  sync.Mutex
 
 	// udp:ip:port
@@ -36,9 +35,6 @@ func SetIptablesChain(c *iptables.Chain) {
 	chain = c
 }
 
-func SetIp6tablesChain(c *iptables.Chain) {
-	chain6 = c
-}
 
 func Map(container net.Addr, hostIP net.IP, hostPort int) error {
 	lock.Lock()
@@ -136,17 +132,9 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 	return nil, 0
 }
 
-// TODO(ajw) Make it work with IPv6
 func forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
-	if sourceIP.To4() != nil {
-		if chain == nil {
-			return nil
-		}
-		return chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
-	} else {
-		if chain6 == nil {
-			return nil
-		}
-		return chain6.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
+	if chain == nil {
+		return nil
 	}
+	return chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
 }

@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"net"
 	"time"
-	"log"
 
-	"github.com/dotcloud/docker/utils"
 	"github.com/dotcloud/docker/pkg/netlink"
 )
 
@@ -282,17 +280,4 @@ func IsIPv6(ip *net.IP) bool {
 	}
 
 	return false
-}
-
-func SupportsIPv6NAT() bool {
-	version, err := utils.GetKernelVersion()
-	if err != nil {
-		log.Printf("WARNING: %s\n", err)
-		return false
-	}
-
-	if utils.CompareKernelVersion(version, &utils.KernelVersionInfo{Kernel: 3, Major: 7, Minor: 0}) < 0 {
-		return false
-	}
-	return true
 }
