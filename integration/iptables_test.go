@@ -20,15 +20,3 @@ func TestIptables(t *testing.T) {
 		t.Fatal("Not finding iptables in the PATH should cause an error")
 	}
 }
-
-func TestIp6tables(t *testing.T) {
-	if _, err := iptables.Raw6("-L"); err != nil {
-		t.Fatal(err)
-	}
-	path := os.Getenv("PATH")
-	os.Setenv("PATH", "")
-	defer os.Setenv("PATH", path)
-	if _, err := iptables.Raw6("-L"); err == nil {
-		t.Fatal("Not finding iptables in the PATH should cause an error")
-	}
-}
